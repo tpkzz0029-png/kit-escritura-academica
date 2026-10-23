@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.625rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  /* Evita que las palabras se corten en cualquier cuadro */
+  p, h1, h2, h3, h4, h5, h6, li, span, a, button, label, td, th, div {
+    overflow-wrap: break-word;
+  }
+}
+
+/* Tarjeta de sección con franja de color degradada */
+@layer components {
+  .card-accent {
+    @apply relative overflow-hidden;
+  }
+  .card-accent::before {
+    content: "";
+    @apply absolute inset-x-0 top-0 h-1.5;
+    background: var(--card-accent-gradient, linear-gradient(90deg, #6366f1, #a855f7));
+  }
+
+  /* Ígneas: rojo volcánico */
+  .geo-ignea .card-accent {
+    border-color: rgb(254 205 211 / 0.7);
+  }
+  .dark .geo-ignea .card-accent {
+    border-color: rgb(136 19 55 / 0.5);
+  }
+  .geo-ignea .card-accent::before {
+    background: linear-gradient(90deg, #f43f5e, #fb923c);
+  }
+  .geo-ignea .card-accent :is([data-slot="card-title"], svg.lucide) {
+    color: #e11d48;
+  }
+  .dark .geo-ignea .card-accent :is([data-slot="card-title"], svg.lucide) {
+    color: #fb7185;
+  }
+
+  /* Sedimentarias: ámbar */
+  .geo-sed .card-accent {
+    border-color: rgb(253 230 138 / 0.8);
+  }
+  .dark .geo-sed .card-accent {
+    border-color: rgb(120 72 10 / 0.5);
+  }
+  .geo-sed .card-accent::before {
+    background: linear-gradient(90deg, #f59e0b, #facc15);
+  }
+  .geo-sed .card-accent :is([data-slot="card-title"], svg.lucide) {
+    color: #d97706;
+  }
+  .dark .geo-sed .card-accent :is([data-slot="card-title"], svg.lucide) {
+    color: #fbbf24;
+  }
+
+  /* Metamórficas: violeta */
+  .geo-meta .card-accent {
+    border-color: rgb(221 214 254 / 0.9);
+  }
+  .dark .geo-meta .card-accent {
+    border-color: rgb(76 29 149 / 0.5);
+  }
+  .geo-meta .card-accent::before {
+    background: linear-gradient(90deg, #8b5cf6, #c084fc);
+  }
+  .geo-meta .card-accent :is([data-slot="card-title"], svg.lucide) {
+    color: #7c3aed;
+  }
+  .dark .geo-meta .card-accent :is([data-slot="card-title"], svg.lucide) {
+    color: #a78bfa;
+  }
+}

@@ -1,0 +1,19 @@
+# Configuración de Netlify: build de Vite + función serverless del humanizador.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# La app llama a /api/humanize; lo reenviamos a la función serverless.
+# Esta regla va ANTES del fallback de la SPA para que no quede enmascarada.
+[[redirects]]
+  from = "/api/humanize"
+  to = "/.netlify/functions/humanize"
+  status = 200
+
+# Fallback de la app de una sola página (react-router).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

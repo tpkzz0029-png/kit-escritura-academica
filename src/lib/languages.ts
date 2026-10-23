@@ -1,0 +1,51 @@
+export interface Language {
+  code: string
+  name: string
+}
+
+export const AUTO = { code: 'auto', name: 'Detectar automáticamente' }
+
+export const LANGUAGES: Language[] = [
+  { code: 'es', name: 'Español' },
+  { code: 'en', name: 'Inglés' },
+  { code: 'fr', name: 'Francés' },
+  { code: 'de', name: 'Alemán' },
+  { code: 'pt', name: 'Portugués' },
+  { code: 'it', name: 'Italiano' },
+  { code: 'ca', name: 'Catalán' },
+  { code: 'gl', name: 'Gallego' },
+  { code: 'eu', name: 'Euskera' },
+  { code: 'nl', name: 'Neerlandés' },
+  { code: 'pl', name: 'Polaco' },
+  { code: 'ru', name: 'Ruso' },
+  { code: 'uk', name: 'Ucraniano' },
+  { code: 'zh-CN', name: 'Chino (simplificado)' },
+  { code: 'zh-TW', name: 'Chino (tradicional)' },
+  { code: 'ja', name: 'Japonés' },
+  { code: 'ko', name: 'Coreano' },
+  { code: 'ar', name: 'Árabe' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'tr', name: 'Turco' },
+  { code: 'sv', name: 'Sueco' },
+  { code: 'da', name: 'Danés' },
+  { code: 'fi', name: 'Finlandés' },
+  { code: 'no', name: 'Noruego' },
+  { code: 'cs', name: 'Checo' },
+  { code: 'sk', name: 'Eslovaco' },
+  { code: 'sl', name: 'Esloveno' },
+  { code: 'hu', name: 'Húngaro' },
+  { code: 'ro', name: 'Rumano' },
+  { code: 'bg', name: 'Búlgaro' },
+  { code: 'hr', name: 'Croata' },
+  { code: 'sr', name: 'Serbio' },
+  { code: 'el', name: 'Griego' },
+  { code: 'he', name: 'Hebreo' },
+  { code: 'id', name: 'Indonesio' },
+  { code: 'ms', name: 'Malayo' },
+  { code: 'th', name: 'Tailandés' },
+  { code: 'vi', name: 'Vietnamita' },
+  { code: 'sw', name: 'Suajili' },
+  { code: 'et', name: 'Estonio' },
+  { code: 'lv', name: 'Letón' },
+  { code: 'lt', name: 'Lituano' },
+]
