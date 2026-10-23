@@ -1,8 +1,164 @@
+import { useState } from 'react'
 import { Gem, Info, Table2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+
+/* Fotos reales de cada mineral (Wikimedia Commons, dominio público / CC),
+   descargadas en public/minerales/ con scripts/descargar_minerales.py.
+   Clave = nombre exacto del mineral en las tablas. */
+const IMAGENES: Record<string, string> = {
+  Oro: 'oro',
+  Plata: 'plata',
+  'Cobre nativo': 'cobre-nativo',
+  Platino: 'platino',
+  Azufre: 'azufre',
+  Diamante: 'diamante',
+  Grafito: 'grafito',
+  Mercurio: 'mercurio',
+  Galena: 'galena',
+  Pirita: 'pirita',
+  Calcopirita: 'calcopirita',
+  'Esfalerita (blenda)': 'esfalerita',
+  Bornita: 'bornita',
+  Cinabrio: 'cinabrio',
+  Molibdenita: 'molibdenita',
+  Pirrotita: 'pirrotita',
+  Calcosina: 'calcosina',
+  Estibinita: 'estibinita',
+  Argentita: 'argentita',
+  Tetraedrita: 'tetraedrita',
+  Hematita: 'hematita',
+  Magnetita: 'magnetita',
+  'Limonita (goethita)': 'limonita',
+  Bauxita: 'bauxita',
+  Corindón: 'corindon',
+  Casiterita: 'casiterita',
+  Rutilo: 'rutilo',
+  Ilmenita: 'ilmenita',
+  Pirolusita: 'pirolusita',
+  Cromita: 'cromita',
+  Brucita: 'brucita',
+  Gibbsita: 'gibbsita',
+  'Halita (sal común)': 'halita',
+  Fluorita: 'fluorita',
+  Silvita: 'silvita',
+  Carnalita: 'carnalita',
+  Criolita: 'criolita',
+  Atacamita: 'atacamita',
+  Calcita: 'calcita',
+  Aragonito: 'aragonito',
+  Dolomita: 'dolomita',
+  Magnesita: 'magnesita',
+  Siderita: 'siderita',
+  Rodocrosita: 'rodocrosita',
+  Smithsonita: 'smithsonita',
+  Witherita: 'witherita',
+  Malachita: 'malachita',
+  Azurita: 'azurita',
+  'Nitrato de sodio (soda chilena)': 'nitrato-sodio',
+  Borax: 'borax',
+  Ulexita: 'ulexita',
+  Yeso: 'yeso',
+  Anhidrita: 'anhidrita',
+  Baritina: 'baritina',
+  Celestina: 'celestina',
+  Anglesita: 'anglesita',
+  Alunita: 'alunita',
+  'Epsomita (sal de Epsom)': 'epsomita',
+  Crocoíta: 'crocoita',
+  Apatita: 'apatita',
+  Turquesa: 'turquesa',
+  Piromorfita: 'piromorfita',
+  Vanadinita: 'vanadinita',
+  Wulfenita: 'wulfenita',
+  Vivianita: 'vivianita',
+  Monacita: 'monacita',
+  Olivino: 'olivino',
+  'Granate (almandino-piropo)': 'granate',
+  Circón: 'circon',
+  Almandino: 'almandino',
+  Piropo: 'piropo',
+  Andalucita: 'andalucita',
+  'Cianita (distaena)': 'cianita',
+  Silimanita: 'silimanita',
+  Estaurolita: 'estaurolita',
+  Topacio: 'topacio',
+  'Titanita (esfena)': 'titanita',
+  Epidota: 'epidota',
+  Hemimorfita: 'hemimorfita',
+  Lawsonita: 'lawsonita',
+  Turmalina: 'turmalina',
+  Berilo: 'berilo',
+  Cordierita: 'cordierita',
+  Augita: 'augita',
+  Diópsido: 'diopsido',
+  Enstatita: 'enstatita',
+  Espodumena: 'espodumena',
+  Hornblenda: 'hornblenda',
+  'Actinolita-tremolita': 'actinolita',
+  'Crisótilo (asbesto)': 'crisotilo',
+  Muscovita: 'muscovita',
+  Biotita: 'biotita',
+  Clorita: 'clorita',
+  Lepidolita: 'lepidolita',
+  Talco: 'talco',
+  Caolinita: 'caolinita',
+  Montmorillonita: 'montmorillonita',
+  Cuarzo: 'cuarzo',
+  Ortoclasa: 'ortoclasa',
+  Microclina: 'microclina',
+  'Plagioclasa (albita-anortita)': 'plagioclasa',
+  Nefelina: 'nefelina',
+  Leucita: 'leucita',
+  Sanidina: 'sanidina',
+  Ámbar: 'ambar',
+  Mellite: 'mellite',
+  'Asfalto (bitumen)': 'asfalto',
+  'Whewellita (oxalato cálcico)': 'whewellita',
+}
+
+/** Miniatura circular del mineral; al hacer clic abre la foto ampliada. */
+function MineralPhoto({ nombre }: { nombre: string }) {
+  const [open, setOpen] = useState(false)
+  const slug = IMAGENES[nombre]
+  if (!slug) return null
+  const src = `/minerales/${slug}.jpg`
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title={`Ver foto de ${nombre}`}
+        className="block shrink-0 overflow-hidden rounded-md border bg-muted transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <img
+          src={src}
+          alt={`Muestra de ${nombre}`}
+          loading="lazy"
+          className="h-12 w-12 object-cover"
+        />
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{nombre}</DialogTitle>
+            <DialogDescription>
+              Muestra de mano de referencia. Foto: Wikimedia Commons (licencia libre).
+            </DialogDescription>
+          </DialogHeader>
+          <img
+            src={src}
+            alt={`Muestra ampliada de ${nombre}`}
+            className="mx-auto max-h-[65vh] w-auto rounded-lg border object-contain"
+          />
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    Clasificación química de minerales (por el anión dominante),
@@ -268,7 +424,12 @@ function MineralTable({ minerales }: { minerales: Mineral[] }) {
         <tbody>
           {minerales.map((m, i) => (
             <tr key={m.nombre} className={i % 2 === 0 ? 'bg-background' : 'bg-muted/25'}>
-              <td className="px-3 py-2 font-medium">{m.nombre}</td>
+              <td className="px-3 py-2">
+                <div className="flex items-center gap-2.5">
+                  <MineralPhoto nombre={m.nombre} />
+                  <span className="font-medium">{m.nombre}</span>
+                </div>
+              </td>
               <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{m.formula}</td>
               <td className="px-3 py-2">
                 <Badge variant="secondary" className="font-mono text-xs">{m.mohs}</Badge>
@@ -296,7 +457,8 @@ export default function MineralesPanel() {
           Los minerales se agrupan por el <strong>anión o grupo aniónico dominante</strong>, porque los que
           comparten anión se parecen más entre sí (color, raya, brillo, yacimiento) que los que comparten
           catión. Cada ficha resume las propiedades diagnósticas de muestra de mano: fórmula, dureza Mohs,
-          color, raya, brillo, exfoliación y yacimiento con sus usos.
+          color, raya, brillo, exfoliación y yacimiento con sus usos. Pulsa la miniatura de cada mineral
+          para ver su foto de muestra ampliada.
         </AlertDescription>
       </Alert>
 
