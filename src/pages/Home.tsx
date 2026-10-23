@@ -1,56 +1,25 @@
 import { Link } from 'react-router'
 import {
   ArrowRight,
-  Bot,
-  FileText,
+  Gem,
   GraduationCap,
   Mountain,
-  SearchCheck,
-  ShieldAlert,
 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { LANGUAGES } from '@/lib/languages'
 
+// Solo Geología está visible en la web; las demás herramientas
+// (conversor, detector, plagio) quedan ocultas temporalmente.
 const HERRAMIENTAS = [
-  {
-    to: '/conversor',
-    icon: FileText,
-    accent: 'sky' as const,
-    gradient: 'linear-gradient(90deg,#0ea5e9,#22d3ee)',
-    titulo: '1 · Conversor de PDF',
-    descripcion: `Sube un PDF, extrae su texto página por página, tradúcelo a ${LANGUAGES.length}+ idiomas y descárgalo como documento Word (.docx) listo para editar.`,
-    cta: 'Abrir conversor',
-  },
-  {
-    to: '/detector',
-    icon: Bot,
-    accent: 'violet' as const,
-    gradient: 'linear-gradient(90deg,#8b5cf6,#d946ef)',
-    titulo: '2 · Detector de IA y Humanizador',
-    descripcion:
-      'Analiza el texto oración por oración con criterios estilo Turnitin (perplejidad, burstiness, frases de molde) y, si supera el 15 %, humanízalo con la IA integrada para bajar la puntuación antes de entregar.',
-    cta: 'Abrir detector',
-  },
-  {
-    to: '/plagio',
-    icon: SearchCheck,
-    accent: 'amber' as const,
-    gradient: 'linear-gradient(90deg,#f59e0b,#f97316)',
-    titulo: '3 · Plagio y Corrector',
-    descripcion:
-      'Detecta pasajes repetidos, citas sin referencia y textos reciclados de internet, y corrige gramática, concordancia y estilo palabra por palabra o párrafo a párrafo.',
-    cta: 'Abrir detector de plagio',
-  },
   {
     to: '/geologia',
     icon: Mountain,
     accent: 'emerald' as const,
     gradient: 'linear-gradient(90deg,#10b981,#14b8a6)',
-    titulo: '4 · Geología',
+    titulo: 'Geología',
     descripcion:
-      'Clasifica rocas ígneas, sedimentarias y metamórficas con diagramas interactivos (QAPF, Folk, Dunham, facies) e identifica minerales por grupos con fichas de mano.',
+      'Clasifica rocas ígneas, sedimentarias y metamórficas con diagramas interactivos (QAPF, Folk, Dunham, facies) e identifica minerales por grupos con fichas de mano y fotos.',
     cta: 'Abrir geología',
   },
 ]
@@ -70,20 +39,19 @@ export default function Home() {
           <div className="text-center">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
               <GraduationCap className="h-4 w-4" />
-              Pensado para tesis, ensayos e informes
+              Petrología y mineralogía para la universidad
             </div>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Tu kit de escritura académica
+              Geología interactiva
             </h1>
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-              Todo lo que necesitas para entregar un trabajo escrito limpio: extraes y traduces
-              tus fuentes, compruebas que el texto suene a persona y no a IA, y verificas que
-              sea original y esté bien escrito. Con criterios universitarios integrados:
-              menos del 15 % de detección de IA y menos del 20 % de plagio.
+              Aprende petrología y mineralogía con diagramas clásicos interactivos (QAPF, Folk,
+              Dunham, facies metamórficas), guías de identificación de muestras de mano y fichas
+              completas de minerales con fotos de referencia.
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mx-auto grid max-w-md gap-4">
             {HERRAMIENTAS.map(({ to, icon: Icon, accent, gradient, titulo, descripcion, cta }) => {
               const a = ACCENTS[accent]
               return (
@@ -112,12 +80,13 @@ export default function Home() {
           </div>
 
           <Alert>
-            <ShieldAlert className="h-4 w-4" />
-            <AlertTitle>Herramienta de apoyo, no de sustitución</AlertTitle>
+            <Gem className="h-4 w-4" />
+            <AlertTitle>Material de estudio de apoyo</AlertTitle>
             <AlertDescription>
-              Los detectores son estimaciones orientativas: un porcentaje alto no demuestra uso de
-              IA y uno bajo no lo descarta. Usa la app para mejorar tu propia redacción; la versión
-              final de un trabajo debe reflejar tu análisis y tus palabras.
+              Los diagramas y guías siguen los esquemas clásicos de las guías de campo y los
+              manuales de mineralogía y petrología. Úsalos para practicar la identificación de
+              rocas y minerales; la determinación definitiva de una muestra requiere análisis
+              de laboratorio (lámina delgada, difracción de rayos X).
             </AlertDescription>
           </Alert>
         </div>
