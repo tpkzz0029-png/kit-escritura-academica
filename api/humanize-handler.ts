@@ -97,25 +97,36 @@ export async function handleHumanize(body: unknown): Promise<{
     }
   }
 
-  const res = await fetch(KIMI_GW_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${resolveGwKey()}`,
-    },
-    body: JSON.stringify({
-      model: KIMI_GW_MODEL,
-      temperature: 1,
-      max_tokens: 16384,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: `TEXTO:\n\n${text}\n\nRecuerda el formato exacto: texto reescrito completo, una línea con solo ---, y la lista breve de cambios principales. Sin etiquetas (1)/(2).`,
-        },
-      ],
-    }),
-  })
+  let res: Response
+  try {
+    res = await fetch(KIMI_GW_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${resolveGwKey()}`,
+      },
+      body: JSON.stringify({
+        model: KIMI_GW_MODEL,
+        temperature: 1,
+        max_tokens: 8192,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: `TEXTO:\n\n${text}\n\nRecuerda el formato exacto: texto reescrito completo, una línea con solo ---, y la lista breve de cambios principales. Sin etiquetas (1)/(2).`,
+          },
+        ],
+      }),
+    })
+  } catch (e) {
+    // Sin este catch, un fallo de red/caída del gateway rompe la función y el
+    // host responde un 502 genérico. Devolvemos un error claro para reintentar.
+    const msg = e instanceof Error ? e.message : String(e)
+    return {
+      status: 502,
+      json: { error: `No se pudo contactar con el gateway de IA (${msg}). Reintenta.` },
+    }
+  }
 
   if (!res.ok) {
     return { status: res.status, json: { error: await gwError(res) } }
