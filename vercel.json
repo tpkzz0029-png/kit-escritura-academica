@@ -4,7 +4,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/humanize.ts": { "maxDuration": 300 }
+    "api/humanize.ts": { "maxDuration": 300 },
+    "api/translate.ts": { "maxDuration": 300 }
   },
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
 }

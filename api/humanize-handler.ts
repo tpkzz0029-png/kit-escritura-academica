@@ -20,19 +20,19 @@
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } })
   .process?.env ?? {}
 
-type Proveedor = 'gemini' | 'perplexity'
+export type Proveedor = 'gemini' | 'perplexity'
 
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
-const GEMINI_MODELOS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite']
-const PPLX_URL = 'https://api.perplexity.ai/v1/agent'
-const PPLX_MODELOS = ['google/gemini-3.8-flash', 'openai/gpt-6-luna', 'perplexity/sonar']
+export const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
+export const GEMINI_MODELOS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite']
+export const PPLX_URL = 'https://api.perplexity.ai/v1/agent'
+export const PPLX_MODELOS = ['google/gemini-3.8-flash', 'openai/gpt-6-luna', 'perplexity/sonar']
 
 const lista = (v: string | undefined, porDefecto: string[]) => {
   const m = (v ?? '').split(',').map((x) => x.trim()).filter(Boolean)
   return (m.length ? m : porDefecto).slice(0, 5)
 }
 
-function proveedor(): { id: Proveedor; key: string } | null {
+export function proveedor(): { id: Proveedor; key: string } | null {
   const g = (env.GEMINI_API_KEY ?? '').trim()
   const p = (env.PERPLEXITY_API_KEY ?? '').trim()
   const elegido = (env.AI_PROVIDER ?? '').trim().toLowerCase()
@@ -43,7 +43,7 @@ function proveedor(): { id: Proveedor; key: string } | null {
   return null
 }
 
-function timeoutMs(): number {
+export function timeoutMs(): number {
   const n = Number(env.AI_TIMEOUT_MS)
   if (Number.isFinite(n) && n > 1000) return n
   if (env.VERCEL) return 280_000
@@ -113,7 +113,7 @@ No escribas "(1)" ni "(2)", no uses marcado **: solo el texto, la línea --- y l
 
 const MAX_CHARS = 30000
 
-async function apiError(res: Response, prov: Proveedor): Promise<string> {
+export async function apiError(res: Response, prov: Proveedor): Promise<string> {
   const nombre = prov === 'gemini' ? 'Gemini' : 'Perplexity'
   const variable = prov === 'gemini' ? 'GEMINI_API_KEY' : 'PERPLEXITY_API_KEY'
   let msg = ''
@@ -134,7 +134,7 @@ async function apiError(res: Response, prov: Proveedor): Promise<string> {
 }
 
 /** Extrae el texto final de la respuesta de la Agent API (output[].content[].text) */
-function textoDeRespuesta(data: unknown): string {
+export function textoDeRespuesta(data: unknown): string {
   const out = (data as { output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }> })?.output ?? []
   return out
     .filter((o) => o.type === 'message')
@@ -146,7 +146,7 @@ function textoDeRespuesta(data: unknown): string {
 }
 
 /** Extrae el texto de una respuesta de Gemini (Interactions API o generateContent) */
-function textoGemini(data: unknown): { text: string; truncated: boolean } {
+export function textoGemini(data: unknown): { text: string; truncated: boolean } {
   const d = data as Record<string, unknown>
   if (typeof d?.output_text === 'string') return { text: d.output_text.trim(), truncated: false }
   // generateContent: candidates[0].content.parts[].text

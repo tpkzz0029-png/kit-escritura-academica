@@ -8,11 +8,17 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# La app llama a /api/humanize; lo reenviamos a la función serverless.
-# Esta regla va ANTES del fallback de la SPA para que no quede enmascarada.
+# La app llama a /api/humanize y /api/translate; los reenviamos a las
+# funciones serverless. Estas reglas van ANTES del fallback de la SPA para
+# que no queden enmascaradas.
 [[redirects]]
   from = "/api/humanize"
   to = "/.netlify/functions/humanize"
+  status = 200
+
+[[redirects]]
+  from = "/api/translate"
+  to = "/.netlify/functions/translate"
   status = 200
 
 # Fallback de la app de una sola página (react-router).

@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileText,
   FileUp,
+  Languages,
   Loader2,
   RefreshCcw,
   ScanLine,
@@ -45,6 +46,7 @@ import {
 } from '@/lib/aiDetect'
 import { humanizeText } from '@/lib/humanize'
 import { humanizeWithAI } from '@/lib/aiHumanize'
+import { translateWithAI } from '@/lib/aiTranslate'
 import { paraphraseText } from '@/lib/paraphrase'
 import { buildDocx, downloadBlob } from '@/lib/docx'
 import { K_DETECT_TEXT, K_DOC_NAME, K_PENDING_DETECT, K_PDF_TEXT } from '@/lib/pageShared'
@@ -174,6 +176,14 @@ export default function DetectorPage() {
   const [humFlaggedOnly, setHumFlaggedOnly] = useState(false)
   const [humError, setHumError] = useState<string | null>(null)
   const [humProgress, setHumProgress] = useState<string | null>(null)
+
+  // Paso 2 del humanizador: traducción de ida y vuelta (es → en → es sin corregir)
+  const [tripRunning, setTripRunning] = useState(false)
+  const [tripError, setTripError] = useState<string | null>(null)
+  const [tripProgress, setTripProgress] = useState<string | null>(null)
+  const [tripEn, setTripEn] = useState('')
+  const [tripEs, setTripEs] = useState('')
+  const [tripAfter, setTripAfter] = useState<number | null>(null)
 
   // comparte el texto con la página de plagio y conserva transferencias entre páginas
   useEffect(() => {
@@ -369,6 +379,34 @@ export default function DetectorPage() {
       setHumProgress(null)
     }
   }, [detectText, humRunning, humMode, humFlaggedOnly, sentences])
+
+  // PASO 2 del humanizador con IA: traducir el resultado al inglés y volverlo
+  // al español SIN corregir. Las imperfecciones que introduce la traducción de
+  // vuelta rompen la huella estadística (perplexity/burstiness) que detecta Turnitin.
+  const runRoundTrip = useCallback(async () => {
+    const src = humText.trim()
+    if (!src || tripRunning) return
+    setTripRunning(true)
+    setTripError(null)
+    setTripEn('')
+    setTripEs('')
+    setTripAfter(null)
+    try {
+      const en = await translateWithAI(src, 'en', 'normal', setTripProgress)
+      setTripEn(en)
+      const es = await translateWithAI(en, 'es', 'literal', setTripProgress)
+      setTripEs(es)
+      setTripProgress('Re-evaluando el texto resultante…')
+      const after = analyzeDetailed(es).report.overallScore
+      setTripAfter(after)
+    } catch (e) {
+      console.error(e)
+      setTripError(e instanceof Error ? e.message : 'No se pudo completar la traducción de ida y vuelta.')
+    } finally {
+      setTripRunning(false)
+      setTripProgress(null)
+    }
+  }, [humText, tripRunning])
 
   return (
     <PageShell>
@@ -1172,6 +1210,128 @@ export default function DetectorPage() {
                         <ScanLine className="mr-1.5 h-3.5 w-3.5" /> Re-analizar en Detector IA
                       </Button>
                     </div>
+
+                    {/* PASO 2 — Traducción de ida y vuelta como refuerzo anti-detección */}
+                    <div className="space-y-3 rounded-xl border border-sky-200/60 bg-sky-50/40 p-4 dark:border-sky-900/40 dark:bg-sky-950/20">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="min-w-56 flex-1">
+                          <p className="flex items-center gap-2 text-sm font-semibold">
+                            <Languages className="h-4 w-4 text-sky-600" />
+                            Paso 2 — Traducción de ida y vuelta (refuerzo anti-detección)
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Traduce el texto humanizado al inglés y lo vuelve al español sin corregir: las
+                            imperfecciones y giros que introduce la vuelta rompen la huella estadística que
+                            detectan Turnitin y similares.
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => void runRoundTrip()}
+                          disabled={tripRunning || !humText.trim()}
+                        >
+                          {tripRunning ? (
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Languages className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          {tripRunning ? 'Traduciendo…' : tripEs ? 'Repetir traducción' : 'Traducir a inglés y volver'}
+                        </Button>
+                      </div>
+
+                      {tripProgress && tripRunning && (
+                        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> {tripProgress}
+                        </p>
+                      )}
+                      {tripError && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertTitle>Error en el paso 2</AlertTitle>
+                          <AlertDescription>{tripError}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {tripEn && (
+                        <details className="rounded-lg border bg-background px-3 py-2">
+                          <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                            Texto en inglés (intermedio) — clic para ver
+                          </summary>
+                          <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                            {tripEn}
+                          </p>
+                        </details>
+                      )}
+
+                      {tripEs && tripAfter !== null && (
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <p className="text-sm font-medium">Puntuación tras la traducción de ida y vuelta:</p>
+                            <Badge className={uniAIBadge(humAfter ?? 0)}>paso 1: {humAfter}%</Badge>
+                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                            <Badge className={uniAIBadge(tripAfter)}>final {tripAfter}%</Badge>
+                            {tripAfter <= UNI_AI_MAX && (humAfter ?? 100) > UNI_AI_MAX && (
+                              <Badge className={cn(LABEL_BADGE.humano, 'gap-1')}>
+                                <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> ahora dentro del criterio universitario
+                              </Badge>
+                            )}
+                          </div>
+                          <Textarea
+                            value={tripEs}
+                            onChange={(e) => setTripEs(e.target.value)}
+                            className="min-h-40 leading-relaxed"
+                          />
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                void navigator.clipboard.writeText(tripEs)
+                              }}
+                            >
+                              <Copy className="mr-1.5 h-3.5 w-3.5" /> Copiar texto final
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                downloadBlob(
+                                  new Blob([tripEs], { type: 'text/plain;charset=utf-8' }),
+                                  'texto_final_humanizado.txt'
+                                )
+                              }
+                            >
+                              <Download className="mr-1.5 h-3.5 w-3.5" /> Descargar .txt
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                void (async () => {
+                                  const blob = await buildDocx(
+                                    [{ page: 1, text: tripEs }],
+                                    null,
+                                    'convert',
+                                    'Texto final humanizado',
+                                    false,
+                                    `Puntuación de IA estimada: ${humBefore}% → ${humAfter}% (paso 1) → ${tripAfter}% (con traducción de ida y vuelta)`
+                                  )
+                                  downloadBlob(blob, 'texto_final_humanizado.docx')
+                                })()
+                              }}
+                            >
+                              <FileText className="mr-1.5 h-3.5 w-3.5" /> Descargar Word (.docx)
+                            </Button>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            La vuelta al español es deliberadamente literal y sin corregir: revisa el resultado y
+                            ajusta a mano lo que consideres necesario antes de entregar.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                     <p className="text-[11px] text-muted-foreground">
                       Estimación calculada con este mismo detector. Verifica siempre el texto final y,
                       si tu institución usa Turnitin o similar, contrasta allí también.
