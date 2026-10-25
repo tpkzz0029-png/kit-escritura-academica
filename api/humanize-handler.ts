@@ -99,7 +99,7 @@ Aplica TODAS estas reglas a la vez:
 
 19. ANÁLISIS CRÍTICO Y CONTRASTE DE AUTORES (solo si el texto original los menciona): cuando el texto original cite a dos o más autores, contrasta explícitamente sus posturas ("X sostiene que…; en cambio, Y advierte que…") y valóralas con un matiz propio. Nunca introduzcas autores, obras ni referencias que no estén en el texto original: una cita inventada es detectable y académicamente mucho más grave que un porcentaje de IA.
 
-20. IRREGULARIDAD NATURAL SIN ERRORES: permite que el texto respire como escritura humana — una construcción algo menos pulida de vez en cuando, una pausa con coma donde la norma la haría opcional, un giro ligeramente coloquial muy ocasional. La ortografía, la concordancia y los términos técnicos SIEMPRE impecables: un error de escritura deliberado no engaña al detector y sí resta credibilidad ante el revisor.
+20. IRREGULARIDAD NATURAL Y ERRORES INTENCIONALES ESPORÁDICOS: permite que el texto respire como escritura humana — construcciones algo menos pulidas, pausas con coma opcional, giros ligeramente coloquiales ocasionales. Además, introduce errores tipográficos leves y plausibles de mecanografía con extrema moderación: 1-2 por cada 1000 palabras, nunca seguidos ni en el mismo párrafo (por ejemplo, una letra doblada ("la universidadd"), un acento omitido en una palabra poco frecuente, una tilde de más, un artículo repetido ("la la")). NUNCA en citas, referencias bibliográficas, cifras, fechas, nombres propios ni términos técnicos, y nunca errores de concordancia gramatical. Que parezcan distracciones de quien escribe deprisa, no descuido general.
 
 ENTREGA el resultado en EXACTAMENTE este formato, sin más etiquetas ni numeración:
 
