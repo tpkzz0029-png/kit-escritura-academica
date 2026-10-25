@@ -3,7 +3,7 @@
 // humanización y llama a un modelo de IA. Proveedores disponibles:
 //
 //   · Google Gemini (recomendado: tiene plan gratuito para los modelos Flash)
-//       GEMINI_API_KEY      clave de https://aistudio.google.com/apikey
+//       GEMINI_API_KEY      clave de https://aistudio.google.com/apikey (formato AQ.… o AIza…)
 //       GEMINI_MODEL        (opcional) modelo o lista separada por comas
 //   · Perplexity (Agent API, de pago por uso)
 //       PERPLEXITY_API_KEY  clave de https://console.perplexity.ai
@@ -22,7 +22,7 @@ const env = (globalThis as { process?: { env?: Record<string, string | undefined
 
 type Proveedor = 'gemini' | 'perplexity'
 
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const GEMINI_MODELOS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite']
 const PPLX_URL = 'https://api.perplexity.ai/v1/agent'
 const PPLX_MODELOS = ['google/gemini-3.8-flash', 'openai/gpt-6-luna', 'perplexity/sonar']
@@ -124,6 +124,35 @@ function textoDeRespuesta(data: unknown): string {
     .trim()
 }
 
+/** Extrae el texto de una respuesta de Gemini (Interactions API o generateContent) */
+function textoGemini(data: unknown): { text: string; truncated: boolean } {
+  const d = data as Record<string, unknown>
+  if (typeof d?.output_text === 'string') return { text: d.output_text.trim(), truncated: false }
+  // generateContent: candidates[0].content.parts[].text
+  const cands = d?.candidates as Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> }; finishReason?: string }> | undefined
+  if (Array.isArray(cands) && cands.length) {
+    const c = cands[0]
+    const text = (c.content?.parts ?? []).filter((p) => !p.thought).map((p) => p.text ?? '').join('').trim()
+    return { text, truncated: c.finishReason === 'MAX_TOKENS' }
+  }
+  // Interactions API: el texto final está en el último paso (o en «outputs»)
+  const textos = (v: unknown): string[] => {
+    if (!v || typeof v !== 'object') return []
+    const o = v as Record<string, unknown>
+    if (o.type === 'thought' || o.type === 'thinking') return []
+    if (typeof o.text === 'string') return [o.text]
+    return Object.values(o).flatMap((x) => (Array.isArray(x) ? x.flatMap(textos) : typeof x === 'object' ? textos(x) : []))
+  }
+  const pasos = (d?.steps ?? d?.outputs) as unknown[] | undefined
+  if (Array.isArray(pasos) && pasos.length) {
+    for (let i = pasos.length - 1; i >= 0; i--) {
+      const t = textos(pasos[i]).join('').trim()
+      if (t) return { text: t, truncated: d?.status === 'incomplete' }
+    }
+  }
+  return { text: '', truncated: false }
+}
+
 /**
  * Punto de entrada común: lo usan la función serverless (Vercel/Netlify) y
  * el middleware del servidor de desarrollo de Vite.
@@ -154,6 +183,17 @@ export async function handleHumanize(body: unknown): Promise<{
     }
   }
 
+  // Una clave copiada recortada («AIza…») o con espacios raros rompe la cabecera HTTP.
+  if (!/^[\x21-\x7e]+$/.test(prov.key)) {
+    const variable = prov.id === 'gemini' ? 'GEMINI_API_KEY' : 'PERPLEXITY_API_KEY'
+    return {
+      status: 500,
+      json: {
+        error: `La clave de ${variable} está incompleta o tiene caracteres no válidos (por ejemplo «…» o espacios). Cópiala completa con el botón de copiar y vuelve a publicar.`,
+      },
+    }
+  }
+
   const pedido = `TEXTO:\n\n${text}\n\nRecuerda el formato exacto: texto reescrito completo, una línea con solo ---, y la lista breve de cambios principales. No añadas ideas, datos ni ejemplos que no estén en el texto original.`
 
   // Cortamos nosotros antes del límite del hosting para devolver un error claro
@@ -165,32 +205,43 @@ export async function handleHumanize(body: unknown): Promise<{
   let truncated = false
   try {
     if (prov.id === 'gemini') {
-      // API compatible con OpenAI. Si un modelo no existe o está saturado, probamos el siguiente.
+      // Las claves nuevas de AI Studio (AQ.…, «auth keys») se envían en la cabecera
+      // x-goog-api-key, igual que las antiguas AIza…. Se usa la Interactions API y,
+      // si no está disponible, generateContent. Si un modelo no existe o está
+      // saturado, se prueba el siguiente.
       let ultimo: Response | null = null
-      for (const model of lista(env.GEMINI_MODEL, GEMINI_MODELOS)) {
-        const res = await fetch(GEMINI_URL, {
-          method: 'POST',
-          signal: ctrl.signal,
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${prov.key}` },
-          body: JSON.stringify({
-            model,
-            temperature: 0.5,
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: pedido },
-            ],
-          }),
-        })
-        if (res.ok) {
-          const data = (await res.json()) as { choices?: Array<{ message?: { content?: unknown }; finish_reason?: string }> }
-          const choice = data?.choices?.[0]
-          content = String(choice?.message?.content ?? '').trim()
-          truncated = choice?.finish_reason === 'length'
-          ultimo = null
+      modelos: for (const model of lista(env.GEMINI_MODEL, GEMINI_MODELOS)) {
+        for (const via of ['interactions', 'generateContent'] as const) {
+          const res =
+            via === 'interactions'
+              ? await fetch(`${GEMINI_BASE}/interactions`, {
+                  method: 'POST',
+                  signal: ctrl.signal,
+                  headers: { 'Content-Type': 'application/json', 'x-goog-api-key': prov.key },
+                  body: JSON.stringify({ model, system_instruction: SYSTEM_PROMPT, input: pedido }),
+                })
+              : await fetch(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent`, {
+                  method: 'POST',
+                  signal: ctrl.signal,
+                  headers: { 'Content-Type': 'application/json', 'x-goog-api-key': prov.key },
+                  body: JSON.stringify({
+                    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+                    contents: [{ role: 'user', parts: [{ text: pedido }] }],
+                  }),
+                })
+          if (res.ok) {
+            const r = textoGemini(await res.json())
+            content = r.text
+            truncated = r.truncated
+            ultimo = null
+            break modelos
+          }
+          ultimo = res
+          // 404 en /interactions puede significar que esa vía no existe: probamos generateContent
+          if (via === 'interactions' && res.status === 404) continue
           break
         }
-        ultimo = res
-        if (![404, 429, 500, 503].includes(res.status)) break
+        if (ultimo && ![404, 429, 500, 503].includes(ultimo.status)) break
       }
       if (ultimo) {
         clearTimeout(timer)

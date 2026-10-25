@@ -10,7 +10,7 @@ que la IA no se corta aunque tarde (en Netlify gratis el límite es de 10 s).
 ## 1. Consigue la clave de Gemini (gratis)
 
 1. Entra en <https://aistudio.google.com/apikey> con tu cuenta de Google.
-2. **Create API key** (si te pide un proyecto, crea uno nuevo). La clave empieza por `AIza`.
+2. **Create API key** (si te pide un proyecto, crea uno nuevo). Las claves nuevas empiezan por `AQ.` (las antiguas, por `AIza`). Cópiala con el botón de copiar, completa.
 3. No la pegues en el código. La suscripción Gemini Plus/Advanced no es necesaria:
    la API tiene su propio plan gratuito con límites diarios para los modelos Flash.
 
@@ -34,7 +34,7 @@ Si hay errores, Vercel también fallará al publicar.
 
 | Variable | Valor |
 | --- | --- |
-| `GEMINI_API_KEY` | tu clave `AIza…` |
+| `GEMINI_API_KEY` | tu clave completa (empieza por `AQ.` o `AIza`) |
 | `GEMINI_MODEL` | *(opcional)* p. ej. `gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite` |
 
 5. **Deploy**. Cada `git push` a la rama principal vuelve a publicar solo.
