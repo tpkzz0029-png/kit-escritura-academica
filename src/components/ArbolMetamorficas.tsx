@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 
-type QKey = 'fol' | 'grano' | 'tipo' | 'minvis'
+type QKey = 'fol' | 'grano' | 'tipo' | 'subtipo' | 'minvis'
 type Answers = Partial<Record<QKey, string>>
 
 type Candidate = {
@@ -21,9 +21,9 @@ type Candidate = {
 
 // Cuadro del Anexo B-4 de la Guía 4 (las 11 rocas: foliada/no foliada × tamaño de grano)
 const CANDIDATES: Candidate[] = [
-  { id: 'pizarra', nombre: 'Pizarra', familia: 'Foliada · grano fino', comp: 'Minerales planares microscópicos', protolito: 'Lutita o lodolita', desc: 'Roca plana y lisa; la exfoliación está mejor desarrollada que la foliación. Brillo opaco, se parte en láminas planas y duras a lo largo de los planos de exfoliación.', confirm: 'Grano fino + exfoliación plana mejor desarrollada que la foliación (brillo opaco) = Pizarra, según el Anexo B-4.', accepts: { fol: ['si'], grano: ['fino'], tipo: ['pizarra'] } },
-  { id: 'filita', nombre: 'Filita', familia: 'Foliada · grano fino', comp: 'Micas finas + clorita', protolito: 'Lutita o lodolita', desc: 'Foliación ondulada desarrollada mejor que la exfoliación; se rompe a lo largo de superficies arrugadas u onduladas con brillo metálico.', confirm: 'Grano fino + foliación ondulada con brillo metálico = Filita, según el Anexo B-4.', accepts: { fol: ['si'], grano: ['fino'], tipo: ['filita'] } },
-  { id: 'esquisto', nombre: 'Esquisto', familia: 'Foliada · grano medio a grueso', comp: 'Clorita, biotita, moscovita, kianita, anfíboles, silimanita', protolito: 'Lutita o lodolita', desc: 'Esquistosidad: foliación formada por alineamiento visible de cristales; la roca se rompe a lo largo de superficies escamosas de exfoliación, con textura cristalina. Puede presentar minerales platinados (clorita, biotita, muscovita), cristales laminares (kianita) o prismáticos (anfíboles, turmalina, silimanita).', confirm: 'Grano medio a grueso + esquistosidad con minerales visibles platinados = Esquisto, según el Anexo B-4.', accepts: { fol: ['si'], grano: ['grueso'], tipo: ['esquisto'] } },
+  { id: 'pizarra', nombre: 'Pizarra', familia: 'Foliada · grano fino', comp: 'Minerales planares microscópicos', protolito: 'Lutita o lodolita', desc: 'Roca plana y lisa; la exfoliación está mejor desarrollada que la foliación. Brillo opaco, se parte en láminas planas y duras a lo largo de los planos de exfoliación.', confirm: 'Grano fino + exfoliación plana mejor desarrollada que la foliación (brillo opaco) = Pizarra, según el Anexo B-4.', accepts: { fol: ['si'], grano: ['fino'], tipo: ['no-plat'], subtipo: ['pizarra'] } },
+  { id: 'filita', nombre: 'Filita', familia: 'Foliada · grano fino', comp: 'Micas finas + clorita', protolito: 'Lutita o lodolita', desc: 'Foliación ondulada desarrollada mejor que la exfoliación; se rompe a lo largo de superficies arrugadas u onduladas con brillo metálico.', confirm: 'Grano fino + foliación ondulada con brillo metálico = Filita, según el Anexo B-4.', accepts: { fol: ['si'], grano: ['fino'], tipo: ['no-plat'], subtipo: ['filita'] } },
+  { id: 'esquisto', nombre: 'Esquisto', familia: 'Foliada · grano medio a grueso', comp: 'Clorita, biotita, moscovita, kianita, anfíboles, silimanita', protolito: 'Lutita o lodolita', desc: 'Esquistosidad: foliación formada por alineamiento visible de cristales; la roca se rompe a lo largo de superficies escamosas de exfoliación, con textura cristalina. Puede presentar minerales platinados (clorita, biotita, muscovita), cristales laminares (kianita) o prismáticos (anfíboles, turmalina, silimanita).', confirm: 'Esquistosidad con minerales platinados visibles a simple vista = Esquisto, según el Anexo B-4.', accepts: { fol: ['si'], tipo: ['esquisto'] } },
   { id: 'gneis', nombre: 'Gneis', familia: 'Foliada · grano medio a grueso', comp: 'Bandas alternas de minerales claros y oscuros', protolito: 'Granito', desc: 'Bandeado gneísico: los minerales están separados en bandas alternas, dándole a la roca una textura bandeada en vista lateral y textura cristalina; cristales visibles de dos o más minerales alternando en bandas de foliación claras y oscuras.', confirm: 'Grano medio a grueso + bandeado gneísico (bandas claras y oscuras) = Gneis, según el Anexo B-4.', accepts: { fol: ['si'], grano: ['grueso'], tipo: ['gneis'] } },
   { id: 'antracita', nombre: 'Carbón de antracita', familia: 'No foliada · grano fino', comp: 'Carbono fijo muy alto', protolito: 'Turba, lignito y carbón bituminoso', desc: 'Textura vítrea, con la exfoliación apenas visible; roca brillante y oscura que se rompe a lo largo de fracturas desiguales o concoidales.', confirm: 'Grano fino + textura vítrea brillante con fracturas concoidales = Carbón de antracita, según el Anexo B-4.', accepts: { fol: ['no'], grano: ['fino'], tipo: ['antracita'] } },
   { id: 'corneana', nombre: 'Roca corneana (hornfels)', familia: 'No foliada · grano fino', comp: 'Según la roca original', protolito: 'Cualquier roca', desc: 'Textura microcristalina; usualmente de color bien oscuro y con alto grado de dureza.', confirm: 'Grano fino + microcristalina, oscura y muy dura = Roca corneana, según el Anexo B-4.', accepts: { fol: ['no'], grano: ['fino'], tipo: ['corneana'] } },
@@ -84,13 +84,24 @@ function questionFlow(a: Answers): Question[] {
   if (a.fol === 'si' && a.grano === 'fino') {
     qs.push({
       key: 'tipo',
-      titulo: 'Paso 3 · ¿Qué características distintivas tiene la superficie de exfoliación?',
-      ayuda: 'Paso 3 de la ficha: con grano fino foliado, la superficie de ruptura distingue pizarra de filita (Anexo B-4).',
+      titulo: 'Paso 3 · ¿Se ven minerales platinados a simple vista?',
+      ayuda: 'Mira bien la superficie foliada: si se distinguen hojuelas brillantes de micas (clorita verde, biotita negra, moscovita plateada) o cristales laminares/prismáticos alineados, la roca ya tiene esquistosidad visible y es un Esquisto aunque el grano sea fino. Si la superficie es uniforme, sin minerales distinguibles, continúa a pizarra o filita.',
       opciones: [
-        { value: 'pizarra', label: 'Superficies planas, lisas, duras y opacas', hint: 'la exfoliación está mejor desarrollada que la foliación' },
-        { value: 'filita', label: 'Superficies arrugadas u onduladas con brillo metálico', hint: 'la foliación ondulada está mejor desarrollada que la exfoliación' },
+        { value: 'esquisto', label: 'Sí: se ven micas platinadas o cristales alineados', hint: 'clorita, biotita, moscovita, kianita… = esquistosidad visible' },
+        { value: 'no-plat', label: 'No: superficie uniforme, sin minerales distinguibles', hint: 'sigue a la pregunta de pizarra vs filita' },
       ],
     })
+    if (a.tipo === 'no-plat') {
+      qs.push({
+        key: 'subtipo',
+        titulo: 'Paso 3 · ¿Qué características distintivas tiene la superficie de exfoliación?',
+        ayuda: 'Paso 3 de la ficha: con grano fino foliado y sin minerales platinados visibles, la superficie de ruptura distingue pizarra de filita (Anexo B-4).',
+        opciones: [
+          { value: 'pizarra', label: 'Superficies planas, lisas, duras y opacas', hint: 'la exfoliación está mejor desarrollada que la foliación' },
+          { value: 'filita', label: 'Superficies arrugadas u onduladas con brillo metálico', hint: 'la foliación ondulada está mejor desarrollada que la exfoliación' },
+        ],
+      })
+    }
   } else if (a.fol === 'si' && a.grano === 'grueso') {
     qs.push({
       key: 'tipo',
@@ -172,14 +183,17 @@ export default function ArbolMetamorficas() {
       if (k === 'grano') return answers[k] === 'fino' ? 'grano fino' : 'grano medio a grueso'
       if (k === 'tipo') {
         const nombres: Record<string, string> = {
-          pizarra: 'exfoliación plana y opaca', filita: 'foliación ondulada con brillo metálico',
-          esquisto: 'esquistosidad escamosa', gneis: 'bandeado gneísico',
+          esquisto: 'con micas platinadas visibles (esquistosidad)', 'no-plat': 'sin platinados visibles',
+          gneis: 'bandeado gneísico',
           antracita: 'textura vítrea brillante', corneana: 'microcristalina oscura y dura',
           serpentina: 'verde sombreada', esteatita: 'tacto jabonoso',
           cuarcita: 'cuarzo liso al frotar', marmol: 'efervescente con HCl',
           metaconglomerado: 'guijarros estirados',
         }
         return nombres[answers[k] ?? ''] ?? answers[k]
+      }
+      if (k === 'subtipo') {
+        return answers[k] === 'pizarra' ? 'exfoliación plana y opaca' : 'foliación ondulada con brillo metálico'
       }
       if (k === 'minvis') {
         const m: Record<string, string> = {
