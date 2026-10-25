@@ -39,10 +39,10 @@ function humanizeApi(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // En local, la clave de la IA se lee de .env.local (PERPLEXITY_API_KEY=...).
+  // En local, la clave de la IA se lee de .env.local (GEMINI_API_KEY=...).
   // Ese archivo no se sube a GitHub (está en .gitignore).
   const env = loadEnv(mode, process.cwd(), '')
-  for (const k of ['PERPLEXITY_API_KEY', 'PERPLEXITY_MODEL', 'AI_TIMEOUT_MS']) {
+  for (const k of ['GEMINI_API_KEY', 'GEMINI_MODEL', 'PERPLEXITY_API_KEY', 'PERPLEXITY_MODEL', 'AI_PROVIDER', 'AI_TIMEOUT_MS']) {
     if (env[k] && !process.env[k]) process.env[k] = env[k]
   }
   return {

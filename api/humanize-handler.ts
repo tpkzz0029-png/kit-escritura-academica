@@ -1,31 +1,46 @@
 // Proxy interno de humanización (SOLO SERVIDOR — nunca se importa desde el
 // cliente). Recibe { text } desde la app, añade el prompt maestro de
-// humanización y llama a la Agent API de Perplexity.
+// humanización y llama a un modelo de IA. Proveedores disponibles:
 //
-// Configuración (variables de entorno del servidor; en Vercel: Settings →
-// Environment Variables; en local: archivo .env.local):
-//   PERPLEXITY_API_KEY  (obligatoria) clave de https://console.perplexity.ai
-//   PERPLEXITY_MODEL    (opcional) modelo o lista separada por comas
-//   AI_TIMEOUT_MS       (opcional) tiempo máximo de espera. Por defecto: 280 s en
-//                       Vercel (límite 300 s), 9,5 s en Netlify (límite 10 s) y
-//                       120 s en local.
+//   · Google Gemini (recomendado: tiene plan gratuito para los modelos Flash)
+//       GEMINI_API_KEY      clave de https://aistudio.google.com/apikey
+//       GEMINI_MODEL        (opcional) modelo o lista separada por comas
+//   · Perplexity (Agent API, de pago por uso)
+//       PERPLEXITY_API_KEY  clave de https://console.perplexity.ai
+//       PERPLEXITY_MODEL    (opcional) modelo o lista separada por comas
 //
-// El navegador nunca ve la clave: solo puede llamar a /api/humanize.
+//   AI_PROVIDER    (opcional) «gemini» o «perplexity». Si no se indica, se usa el
+//                  proveedor cuya clave esté configurada (Gemini primero).
+//   AI_TIMEOUT_MS  (opcional) tiempo máximo de espera. Por defecto: 280 s en
+//                  Vercel (límite 300 s), 9,5 s en Netlify (límite 10 s) y 120 s en local.
+//
+// Las variables se configuran en Vercel → Settings → Environment Variables, o
+// en local en el archivo .env.local. El navegador nunca ve las claves.
 
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } })
   .process?.env ?? {}
 
-export const PPLX_URL = 'https://api.perplexity.ai/v1/agent'
-/** Modelos rápidos con respaldo: si el primero falla, Perplexity prueba el siguiente. */
-const MODELOS_POR_DEFECTO = ['google/gemini-3.8-flash', 'openai/gpt-6-luna', 'perplexity/sonar']
+type Proveedor = 'gemini' | 'perplexity'
 
-function modelos(): string[] {
-  const m = (env.PERPLEXITY_MODEL ?? '').split(',').map((x) => x.trim()).filter(Boolean)
-  return (m.length ? m : MODELOS_POR_DEFECTO).slice(0, 5)
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+const GEMINI_MODELOS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite']
+const PPLX_URL = 'https://api.perplexity.ai/v1/agent'
+const PPLX_MODELOS = ['google/gemini-3.8-flash', 'openai/gpt-6-luna', 'perplexity/sonar']
+
+const lista = (v: string | undefined, porDefecto: string[]) => {
+  const m = (v ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+  return (m.length ? m : porDefecto).slice(0, 5)
 }
 
-function apiKey(): string {
-  return (env.PERPLEXITY_API_KEY ?? '').trim()
+function proveedor(): { id: Proveedor; key: string } | null {
+  const g = (env.GEMINI_API_KEY ?? '').trim()
+  const p = (env.PERPLEXITY_API_KEY ?? '').trim()
+  const elegido = (env.AI_PROVIDER ?? '').trim().toLowerCase()
+  if (elegido === 'perplexity' && p) return { id: 'perplexity', key: p }
+  if (elegido === 'gemini' && g) return { id: 'gemini', key: g }
+  if (g) return { id: 'gemini', key: g }
+  if (p) return { id: 'perplexity', key: p }
+  return null
 }
 
 function timeoutMs(): number {
@@ -77,20 +92,24 @@ No escribas "(1)" ni "(2)", no uses marcado **: solo el texto, la línea --- y l
 
 const MAX_CHARS = 30000
 
-async function apiError(res: Response): Promise<string> {
+async function apiError(res: Response, prov: Proveedor): Promise<string> {
+  const nombre = prov === 'gemini' ? 'Gemini' : 'Perplexity'
+  const variable = prov === 'gemini' ? 'GEMINI_API_KEY' : 'PERPLEXITY_API_KEY'
   let msg = ''
   try {
-    const data = (await res.json()) as Record<string, unknown>
-    const err = data?.error as Record<string, unknown> | string | undefined
-    msg = String((typeof err === 'string' ? err : err?.message) ?? data?.detail ?? data?.message ?? '')
+    const data = (await res.json()) as unknown
+    const d = (Array.isArray(data) ? data[0] : data) as Record<string, unknown>
+    const err = d?.error as Record<string, unknown> | string | undefined
+    msg = String((typeof err === 'string' ? err : err?.message) ?? d?.detail ?? d?.message ?? '')
   } catch {
     /* cuerpo no JSON */
   }
-  if (res.status === 401 || res.status === 403)
-    return 'Perplexity rechazó la clave (401/403). Revisa la variable PERPLEXITY_API_KEY en Vercel.'
-  if (res.status === 402) return 'La cuenta de Perplexity no tiene saldo de API. Revisa la facturación en console.perplexity.ai.'
-  if (res.status === 429) return 'Límite de solicitudes de Perplexity superado (429). Espera un minuto y reintenta.'
-  return msg ? `Perplexity respondió con error ${res.status}: ${msg}` : `Perplexity respondió con error ${res.status}.`
+  if (res.status === 401 || res.status === 403 || (res.status === 400 && /api key/i.test(msg)))
+    return `${nombre} rechazó la clave. Revisa la variable ${variable} en Vercel.`
+  if (res.status === 402) return `La cuenta de ${nombre} no tiene saldo de API.`
+  if (res.status === 429)
+    return `Se alcanzó el límite de uso de ${nombre}${prov === 'gemini' ? ' (plan gratuito)' : ''}. Espera un minuto y reintenta.`
+  return msg ? `${nombre} respondió con error ${res.status}: ${msg}` : `${nombre} respondió con error ${res.status}.`
 }
 
 /** Extrae el texto final de la respuesta de la Agent API (output[].content[].text) */
@@ -127,38 +146,79 @@ export async function handleHumanize(body: unknown): Promise<{
     }
   }
 
-  const key = apiKey()
-  if (!key) {
+  const prov = proveedor()
+  if (!prov) {
     return {
       status: 500,
-      json: { error: 'Falta configurar PERPLEXITY_API_KEY en el servidor (Vercel → Settings → Environment Variables).' },
+      json: { error: 'Falta configurar la clave de la IA (GEMINI_API_KEY) en Vercel → Settings → Environment Variables.' },
     }
   }
+
+  const pedido = `TEXTO:\n\n${text}\n\nRecuerda el formato exacto: texto reescrito completo, una línea con solo ---, y la lista breve de cambios principales. No añadas ideas, datos ni ejemplos que no estén en el texto original.`
 
   // Cortamos nosotros antes del límite del hosting para devolver un error claro
   // en vez del 504 genérico.
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeoutMs())
 
-  let res: Response
+  let content = ''
+  let truncated = false
   try {
-    res = await fetch(PPLX_URL, {
-      method: 'POST',
-      signal: ctrl.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        models: modelos(),
-        instructions: SYSTEM_PROMPT,
-        input: `TEXTO:\n\n${text}\n\nRecuerda el formato exacto: texto reescrito completo, una línea con solo ---, y la lista breve de cambios principales. No añadas ideas, datos ni ejemplos que no estén en el texto original.`,
-        // Sin herramientas: no buscamos en la web, solo reescribimos.
-        temperature: 0.5,
-        max_output_tokens: 2500,
-        stream: false,
-      }),
-    })
+    if (prov.id === 'gemini') {
+      // API compatible con OpenAI. Si un modelo no existe o está saturado, probamos el siguiente.
+      let ultimo: Response | null = null
+      for (const model of lista(env.GEMINI_MODEL, GEMINI_MODELOS)) {
+        const res = await fetch(GEMINI_URL, {
+          method: 'POST',
+          signal: ctrl.signal,
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${prov.key}` },
+          body: JSON.stringify({
+            model,
+            temperature: 0.5,
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              { role: 'user', content: pedido },
+            ],
+          }),
+        })
+        if (res.ok) {
+          const data = (await res.json()) as { choices?: Array<{ message?: { content?: unknown }; finish_reason?: string }> }
+          const choice = data?.choices?.[0]
+          content = String(choice?.message?.content ?? '').trim()
+          truncated = choice?.finish_reason === 'length'
+          ultimo = null
+          break
+        }
+        ultimo = res
+        if (![404, 429, 500, 503].includes(res.status)) break
+      }
+      if (ultimo) {
+        clearTimeout(timer)
+        return { status: ultimo.status, json: { error: await apiError(ultimo, 'gemini') } }
+      }
+    } else {
+      const res = await fetch(PPLX_URL, {
+        method: 'POST',
+        signal: ctrl.signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${prov.key}` },
+        body: JSON.stringify({
+          models: lista(env.PERPLEXITY_MODEL, PPLX_MODELOS),
+          instructions: SYSTEM_PROMPT,
+          input: pedido,
+          // Sin herramientas: no buscamos en la web, solo reescribimos.
+          temperature: 0.5,
+          max_output_tokens: 2500,
+          stream: false,
+        }),
+      })
+      if (!res.ok) {
+        clearTimeout(timer)
+        return { status: res.status, json: { error: await apiError(res, 'perplexity') } }
+      }
+      const data = (await res.json()) as { status?: string }
+      content = textoDeRespuesta(data)
+      truncated = data?.status === 'incomplete'
+    }
   } catch (e) {
     clearTimeout(timer)
     if ((e as Error)?.name === 'AbortError') {
@@ -168,21 +228,14 @@ export async function handleHumanize(body: unknown): Promise<{
       }
     }
     const msg = e instanceof Error ? e.message : String(e)
-    return { status: 502, json: { error: `No se pudo contactar con Perplexity (${msg}). Reintenta.` } }
+    return { status: 502, json: { error: `No se pudo contactar con la IA (${msg}). Reintenta.` } }
   }
   clearTimeout(timer)
 
-  if (!res.ok) {
-    return { status: res.status, json: { error: await apiError(res) } }
-  }
-
-  const data = (await res.json()) as { status?: string; error?: { message?: string } | null; usage?: unknown }
-  const content = textoDeRespuesta(data)
-  const truncated = data?.status === 'incomplete'
   if (!content) {
     return {
       status: 502,
-      json: { error: data?.error?.message || 'El modelo respondió sin contenido. Reintenta con un texto más corto.' },
+      json: { error: 'El modelo respondió sin contenido. Reintenta con un texto más corto.' },
     }
   }
 

@@ -1,17 +1,21 @@
 # Despliegue en Vercel (con el humanizador con IA)
 
 El modo «IA» del humanizador envía el texto a `POST /api/humanize`, una función del
-servidor (`api/humanize.ts`) que llama a la **Agent API de Perplexity**. La clave vive
-solo en el servidor; el navegador nunca la ve.
+servidor (`api/humanize.ts`) que llama a **Google Gemini** (o, si lo prefieres, a
+Perplexity). La clave vive solo en el servidor; el navegador nunca la ve.
 
 En el plan gratuito de Vercel (Hobby) cada función puede durar hasta **300 s**, así
 que la IA no se corta aunque tarde (en Netlify gratis el límite es de 10 s).
 
-## 1. Consigue la clave de Perplexity
+## 1. Consigue la clave de Gemini (gratis)
 
-1. Entra en <https://console.perplexity.ai>.
-2. Agrega un método de pago: la API se cobra por uso y es aparte de la suscripción Pro.
-3. Crea una **API key** (empieza por `pplx-`). No la pegues en el código.
+1. Entra en <https://aistudio.google.com/apikey> con tu cuenta de Google.
+2. **Create API key** (si te pide un proyecto, crea uno nuevo). La clave empieza por `AIza`.
+3. No la pegues en el código. La suscripción Gemini Plus/Advanced no es necesaria:
+   la API tiene su propio plan gratuito con límites diarios para los modelos Flash.
+
+> Alternativa de pago: Perplexity (<https://console.perplexity.ai>, requiere créditos).
+> Usa `PERPLEXITY_API_KEY` y, si tienes ambas claves, `AI_PROVIDER=perplexity`.
 
 ## 2. Sube el proyecto a GitHub
 
@@ -30,8 +34,8 @@ Si hay errores, Vercel también fallará al publicar.
 
 | Variable | Valor |
 | --- | --- |
-| `PERPLEXITY_API_KEY` | tu clave `pplx-…` |
-| `PERPLEXITY_MODEL` | *(opcional)* p. ej. `google/gemini-3.8-flash,openai/gpt-6-luna,perplexity/sonar` |
+| `GEMINI_API_KEY` | tu clave `AIza…` |
+| `GEMINI_MODEL` | *(opcional)* p. ej. `gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite` |
 
 5. **Deploy**. Cada `git push` a la rama principal vuelve a publicar solo.
 
@@ -40,13 +44,13 @@ Si agregas o cambias la variable después, ve a **Deployments → ⋯ → Redepl
 ## 4. Prueba
 
 Abre el Detector, pega un párrafo y usa «Humanizar con IA». Si algo falla, la app
-muestra el motivo: clave inválida (401/403), sin saldo (402), demasiadas peticiones
-(429) o tiempo agotado. Los registros de la función están en Vercel → tu proyecto →
+muestra el motivo: clave inválida, límite del plan gratuito alcanzado (429) o tiempo
+agotado. Los registros de la función están en Vercel → tu proyecto →
 **Logs**.
 
 ## En tu computador (desarrollo)
 
-1. Copia `.env.example` como `.env.local` y pon tu clave en `PERPLEXITY_API_KEY`.
+1. Copia `.env.example` como `.env.local` y pon tu clave en `GEMINI_API_KEY`.
 2. `npm run dev`. El servidor de Vite atiende `/api/humanize` con la misma lógica.
 
 `.env.local` no se sube a GitHub (está en `.gitignore`).
@@ -55,5 +59,5 @@ muestra el motivo: clave inválida (401/403), sin saldo (402), demasiadas petici
 
 El proyecto conserva `netlify.toml` y `netlify/functions/humanize.ts`. Allí la función
 se corta a los 10 s: publica desde GitHub (no arrastrando `dist`), configura
-`PERPLEXITY_API_KEY` y baja el tamaño de los trozos en `src/lib/aiHumanize.ts`
+`GEMINI_API_KEY` y baja el tamaño de los trozos en `src/lib/aiHumanize.ts`
 (`CHUNK_TARGET` ≈ 1200 y `CHUNK_MAX` ≈ 1600).

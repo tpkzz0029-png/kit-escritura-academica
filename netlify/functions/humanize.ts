@@ -1,7 +1,7 @@
 // Función serverless de Netlify: expone POST /api/humanize.
 // Reutiliza la misma lógica que el middleware de desarrollo de Vite y la
-// función de Vercel (api/humanize-handler.ts). La IA es la Agent API de
-// Perplexity; su clave se lee de la variable de entorno PERPLEXITY_API_KEY
+// función de Vercel (api/humanize-handler.ts). La IA (Gemini o Perplexity) y
+// su clave se leen de las variables de entorno (GEMINI_API_KEY, etc.)
 // configurada en Netlify, y el navegador nunca la ve.
 
 import { handleHumanize } from '../../api/humanize-handler'
