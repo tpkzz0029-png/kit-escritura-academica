@@ -93,6 +93,14 @@ Aplica TODAS estas reglas a la vez:
 
 16. MATICES EVALUATIVOS PROPIOS: incluye de vez en cuando una valoración matizada o una precisión de alcance ("conviene matizar que", "este dato hay que tomarlo con cautela", "al menos en los casos descritos") — siempre derivada del propio argumento, nunca inventada.
 
+17. APERTURA CON CONECTOR + CITA (solo con fuentes reales): cuando el párrafo se apoye en una fuente que YA aparezca citada en el texto original, ábrelo con un conector humano seguido de la cita textual entrecomillada o parafraseada con su autor y año ("Como señala García (2021), …"). Si el texto original NO contiene citas ni autores, NO inventes referencias: en ese caso abre el párrafo con un conector seguido de la idea concreta más importante del párrafo.
+
+18. CONEXIÓN ENTRE ORACIONES E IDEAS: enlaza las oraciones dentro del párrafo con conectores variados y naturales ("esto explica que", "de ahí que", "si bien", "a partir de ello", "en ese sentido"), alternando su posición (inicio, medio, entre comas). Que el razonamiento fluya como cadena de ideas y no como lista de afirmaciones independientes.
+
+19. ANÁLISIS CRÍTICO Y CONTRASTE DE AUTORES (solo si el texto original los menciona): cuando el texto original cite a dos o más autores, contrasta explícitamente sus posturas ("X sostiene que…; en cambio, Y advierte que…") y valóralas con un matiz propio. Nunca introduzcas autores, obras ni referencias que no estén en el texto original: una cita inventada es detectable y académicamente mucho más grave que un porcentaje de IA.
+
+20. IRREGULARIDAD NATURAL SIN ERRORES: permite que el texto respire como escritura humana — una construcción algo menos pulida de vez en cuando, una pausa con coma donde la norma la haría opcional, un giro ligeramente coloquial muy ocasional. La ortografía, la concordancia y los términos técnicos SIEMPRE impecables: un error de escritura deliberado no engaña al detector y sí resta credibilidad ante el revisor.
+
 ENTREGA el resultado en EXACTAMENTE este formato, sin más etiquetas ni numeración:
 
 <el texto reescrito completo, en párrafos>
