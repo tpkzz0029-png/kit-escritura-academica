@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import RocaFoto from '@/components/RocaFoto'
 
 type QKey = 'fol' | 'grano' | 'tipo' | 'subtipo' | 'minvis'
 type Answers = Partial<Record<QKey, string>>
@@ -294,6 +295,9 @@ export default function ArbolMetamorficas() {
               {best ? (
                 <>
                   <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-200">{best.nombre}</p>
+                  <div className="mt-3">
+                    <RocaFoto id={best.id} nombre={best.nombre} />
+                  </div>
                   <div className="mt-2 flex flex-wrap justify-center gap-1.5">
                     <Badge className="bg-emerald-200 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-900 dark:text-emerald-200">{best.familia}</Badge>
                     <Badge variant="outline">{best.comp}</Badge>
