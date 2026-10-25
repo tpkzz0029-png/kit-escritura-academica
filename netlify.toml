@@ -5,6 +5,9 @@
   publish = "dist"
   functions = "netlify/functions"
 
+[build.environment]
+  NODE_VERSION = "20"
+
 # La app llama a /api/humanize; lo reenviamos a la función serverless.
 # Esta regla va ANTES del fallback de la SPA para que no quede enmascarada.
 [[redirects]]

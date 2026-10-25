@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import IdentificaIgneas from '@/components/IdentificaIgneas'
 import IdentificaSedimentarias from '@/components/IdentificaSedimentarias'
 import IdentificaMetamorficas from '@/components/IdentificaMetamorficas'
+import { qapfName, qflName, ultramaficaName, VOLCANIC_EQ } from '@/lib/clasificacion'
 
 /* ═══════════════════════════════════════════════════════════════════
    Diagramas interactivos de clasificación de rocas
@@ -85,75 +86,7 @@ function qapfPoint(q: number, a: number, p: number, f: number): { pt: V2; usesF:
   return { pt: bary(VQ, VA, VP, q / t, a / t, p / t), usesF: false }
 }
 
-/** Nombre aproximado según los campos QAPF (límites simplificados) */
-function qapfName(q: number, a: number, p: number, f: number): string {
-  const ratio = a + p > 0 ? (a / (a + p)) * 100 : 50
-  if (f > 0) {
-    const t = a + p + f
-    const F = (f / t) * 100
-    if (F >= 90) return 'Foidolita'
-    if (ratio >= 90) return F >= 35 ? 'Foidolita alcalina' : 'Sienita foidítica'
-    if (ratio >= 65) return F >= 35 ? 'Foidosienita' : 'Sienita foidítica'
-    if (ratio >= 45) return 'Monzonita foidítica'
-    if (ratio >= 10) return 'Monzodiorita foidítica'
-    return 'Diorita/Gabro foidítico'
-  }
-  const t = q + a + p || 1
-  const Q = (q / t) * 100
-  if (Q >= 90) return 'Cuarcita (casi cuarzo puro)'
-  if (Q >= 60) {
-    if (ratio >= 90) return 'Granito alcalino'
-    if (ratio >= 65) return 'Granito'
-    if (ratio >= 45) return 'Granodiorita'
-    return 'Tonalita'
-  }
-  if (Q >= 20) {
-    if (ratio >= 90) return 'Granitoide alcalino'
-    if (ratio >= 65) return 'Sienogranito'
-    if (ratio >= 45) return 'Granodiorita'
-    if (ratio >= 10) return 'Tonalita'
-    return 'Diorita de cuarzo'
-  }
-  if (Q >= 5) {
-    if (ratio >= 65) return 'Sienita de cuarzo'
-    if (ratio >= 45) return 'Monzonita de cuarzo'
-    if (ratio >= 10) return 'Monzodiorita de cuarzo'
-    return 'Diorita de cuarzo / Gabro de cuarzo'
-  }
-  if (ratio >= 90) return 'Sienita alcalina'
-  if (ratio >= 65) return 'Sienita'
-  if (ratio >= 45) return 'Monzonita'
-  if (ratio >= 10) return 'Monzodiorita / Monzogabro'
-  return 'Diorita / Gabro'
-}
 
-/** Equivalentes volcánicos de los nombres plutónicos (misma geometría QAPF) */
-const VOLCANIC_EQ: Record<string, string> = {
-  'Cuarcita (casi cuarzo puro)': 'Riolita con exceso de cuarzo',
-  'Granito alcalino': 'Riolita alcalina (comendita)',
-  'Granito': 'Riolita',
-  'Granodiorita': 'Dacita',
-  'Tonalita': 'Andesita',
-  'Granitoide alcalino': 'Riolita alcalina',
-  'Sienogranito': 'Riolita',
-  'Diorita de cuarzo': 'Andesita basáltica',
-  'Sienita de cuarzo': 'Traquita de cuarzo',
-  'Monzonita de cuarzo': 'Latita',
-  'Monzodiorita de cuarzo': 'Traquiandesita',
-  'Diorita de cuarzo / Gabro de cuarzo': 'Andesita basáltica / Basalto andesítico',
-  'Sienita alcalina': 'Traquita alcalina',
-  'Sienita': 'Traquita',
-  'Monzonita': 'Latita',
-  'Monzodiorita / Monzogabro': 'Traquiandesita basáltica',
-  'Diorita / Gabro': 'Andesita / Basalto',
-  'Foidolita': 'Fonolita / Tefrita',
-  'Foidolita alcalina': 'Fonolita',
-  'Foidosienita': 'Fonolita',
-  'Sienita foidítica': 'Tefrita fonolítica',
-  'Monzonita foidítica': 'Tefrita',
-  'Monzodiorita foidítica': 'Basanita',
-  'Diorita/Gabro foidítico': 'Basanita / Tefrita',
-}
 
 /** Línea paralela a la base a una fracción dada desde el ápice */
 function apexLine(apex: V2, left: V2, right: V2, frac: number): string {
@@ -181,10 +114,11 @@ function QapfDiagram() {
   const total = q + a + p + f
 
   const sliders: Array<{ label: string; value: number; set: (v: number) => void; color: string }> = [
-    { label: 'Q · Cuarzo', value: q, set: setQ, color: 'bg-amber-500' },
+    // Cuarzo y feldespatoides no coexisten en equilibrio: subir uno pone el otro a 0
+    { label: 'Q · Cuarzo', value: q, set: (v) => { setQ(v); if (v > 0) setF(0) }, color: 'bg-amber-500' },
     { label: 'A · Feldespato alcalino', value: a, set: setA, color: 'bg-rose-500' },
     { label: 'P · Plagioclasa', value: p, set: setP, color: 'bg-sky-500' },
-    { label: 'F · Feldespatoide', value: f, set: setF, color: 'bg-violet-500' },
+    { label: 'F · Feldespatoide', value: f, set: (v) => { setF(v); if (v > 0) setQ(0) }, color: 'bg-violet-500' },
   ]
 
   return (
@@ -210,20 +144,23 @@ function QapfDiagram() {
           <polygon points={`${VQ.x},${VQ.y} ${VA.x},${VA.y} ${VF.x},${VF.y} ${VP.x},${VP.y}`} fill="white" stroke="#64748b" strokeWidth="0.6" />
           {/* Línea media A-P */}
           <line x1={VA.x} y1={VA.y} x2={VP.x} y2={VP.y} stroke="#64748b" strokeWidth="0.4" />
-          {/* Rejilla triángulo superior (QAP): Q = 20 y 60 */}
-          <line x1={VQ.x + 0.2 * (VA.x - VQ.x)} y1={VQ.y + 0.2 * (VA.y - VQ.y)} x2={VQ.x + 0.2 * (VP.x - VQ.x)} y2={VQ.y + 0.2 * (VP.y - VQ.y)} stroke="#cbd5e1" strokeWidth="0.35" strokeDasharray="1.5,1.5" />
-          <line x1={VQ.x + 0.6 * (VA.x - VQ.x)} y1={VQ.y + 0.6 * (VA.y - VQ.y)} x2={VQ.x + 0.6 * (VP.x - VQ.x)} y2={VQ.y + 0.6 * (VP.y - VQ.y)} stroke="#cbd5e1" strokeWidth="0.35" strokeDasharray="1.5,1.5" />
-          {/* Radiantes A' = 10, 45, 65, 90 */}
-          {[10, 45, 65, 90].map((pct) => {
+          {/* Rejilla triángulo superior (QAP): Q = 90, 60, 20 y 5.
+              apexLine usa la distancia desde el ápice: Q = 60 → fracción 0.4 */}
+          {[90, 60, 20, 5].map((qv) => {
+            const [x1, y1, x2, y2] = apexLine(VQ, VA, VP, 1 - qv / 100).split(/[ ,]/)
+            return <line key={qv} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cbd5e1" strokeWidth="0.35" strokeDasharray="1.5,1.5" />
+          })}
+          {/* Radiantes A/(A+P) = 10, 35, 65, 90 */}
+          {[10, 35, 65, 90].map((pct) => {
             const [x1, y1, x2, y2] = radialLine(VQ, VA, VP, pct).split(/[ ,]/)
             return <line key={pct} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cbd5e1" strokeWidth="0.35" strokeDasharray="1.5,1.5" />
           })}
-          {/* Rejilla triángulo inferior (FAP): F = 35 y 65 */}
-          {[0.35, 0.65].map((frac) => {
-            const [x1, y1, x2, y2] = apexLine(VF, VA, VP, frac).split(/[ ,]/)
-            return <line key={frac} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#e2e8f0" strokeWidth="0.3" strokeDasharray="1.5,1.5" />
+          {/* Rejilla triángulo inferior (FAP): F = 60 y 10 */}
+          {[60, 10].map((fv) => {
+            const [x1, y1, x2, y2] = apexLine(VF, VA, VP, 1 - fv / 100).split(/[ ,]/)
+            return <line key={fv} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#e2e8f0" strokeWidth="0.3" strokeDasharray="1.5,1.5" />
           })}
-          {[10, 45, 65, 90].map((pct) => {
+          {[10, 35, 65, 90].map((pct) => {
             const [x1, y1, x2, y2] = radialLine(VF, VA, VP, pct).split(/[ ,]/)
             return <line key={pct} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#e2e8f0" strokeWidth="0.3" strokeDasharray="1.5,1.5" />
           })}
@@ -232,8 +169,8 @@ function QapfDiagram() {
           <text x={VA.x - 3} y={VA.y + 1} textAnchor="middle" fontSize="5" fontWeight="bold" fill="#334155">A</text>
           <text x={VP.x + 3} y={VP.y + 1} textAnchor="middle" fontSize="5" fontWeight="bold" fill="#334155">P</text>
           <text x={VF.x} y={VF.y + 5} textAnchor="middle" fontSize="5" fontWeight="bold" fill="#334155">F</text>
-          <text x={VQ.x - 8} y={VQ.y + 14} fontSize="2.8" fill="#94a3b8">Q=60</text>
-          <text x={VQ.x - 10} y={VQ.y + 27} fontSize="2.8" fill="#94a3b8">Q=20</text>
+          <text x={VQ.x + 0.4 * (VP.x - VQ.x) + 1} y={VQ.y + 0.4 * (VP.y - VQ.y) + 1} fontSize="2.8" fill="#94a3b8">Q=60</text>
+          <text x={VQ.x + 0.8 * (VP.x - VQ.x) + 1} y={VQ.y + 0.8 * (VP.y - VQ.y) + 1} fontSize="2.8" fill="#94a3b8">Q=20</text>
           {/* Punto interactivo */}
           <circle cx={pt.x} cy={pt.y} r="2.4" fill={usesF ? '#8b5cf6' : '#e11d48'} stroke="white" strokeWidth="0.5" style={{ transition: 'cx 0.3s ease, cy 0.3s ease' }} />
         </svg>
@@ -306,19 +243,6 @@ const VOl: V2 = { x: 50, y: 8 } // Olivino
 const VOpx: V2 = { x: 8, y: 92 } // Ortopiroxeno
 const VCpx: V2 = { x: 92, y: 92 } // Clinopiroxeno
 
-function ultramaficaName(ol: number, opx: number, cpx: number): string {
-  const t = ol + opx + cpx || 1
-  const O = (ol / t) * 100
-  const X = (opx / t) * 100
-  const C = (cpx / t) * 100
-  if (O >= 90) return 'Dunita'
-  if (O >= 40) {
-    if (Math.abs(X - C) < 15) return 'Lherzolita'
-    return X > C ? 'Harzburgita' : 'Wehrlita'
-  }
-  if (O >= 10) return 'Olivino-piroxenita'
-  return X >= C ? 'Ortopiroxenita' : 'Clinopiroxenita'
-}
 
 function UltramaficasDiagram() {
   const [ol, setOl] = useState(50)
@@ -341,20 +265,21 @@ function UltramaficasDiagram() {
           }}
         >
           <polygon points={`${VOl.x},${VOl.y} ${VOpx.x},${VOpx.y} ${VCpx.x},${VCpx.y}`} fill="white" stroke="#64748b" strokeWidth="0.6" />
-          {/* Rejilla: Ol = 40 y 90, radiantes Opx 50 */}
-          {[0.4, 0.9].map((frac) => {
-            const [x1, y1, x2, y2] = apexLine(VOl, VOpx, VCpx, frac).split(/[ ,]/)
-            return <line key={frac} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cbd5e1" strokeWidth="0.35" strokeDasharray="1.5,1.5" />
+          {/* Rejilla: Ol = 90, 40 y 10 (fracción desde el ápice = 1 − Ol), radiantes Opx/Cpx */}
+          {[90, 40, 10].map((ov) => {
+            const [x1, y1, x2, y2] = apexLine(VOl, VOpx, VCpx, 1 - ov / 100).split(/[ ,]/)
+            return <line key={ov} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cbd5e1" strokeWidth="0.35" strokeDasharray="1.5,1.5" />
           })}
-          {[50].map((pct) => {
+          {[10, 90].map((pct) => {
             const [x1, y1, x2, y2] = radialLine(VOl, VOpx, VCpx, pct).split(/[ ,]/)
             return <line key={pct} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cbd5e1" strokeWidth="0.35" strokeDasharray="1.5,1.5" />
           })}
           <text x={VOl.x} y={VOl.y - 2} textAnchor="middle" fontSize="5" fontWeight="bold" fill="#334155">Ol</text>
           <text x={VOpx.x - 4} y={VOpx.y + 4} textAnchor="middle" fontSize="5" fontWeight="bold" fill="#334155">Opx</text>
           <text x={VCpx.x + 5} y={VCpx.y + 4} textAnchor="middle" fontSize="5" fontWeight="bold" fill="#334155">Cpx</text>
-          <text x={VOl.x + 12} y={VOl.y + 14} fontSize="2.8" fill="#94a3b8">Ol=90</text>
-          <text x={VOl.x - 2} y={VOl.y + 38} fontSize="2.8" fill="#94a3b8">Ol=40</text>
+          <text x={VOl.x + 0.1 * (VCpx.x - VOl.x) + 1} y={VOl.y + 0.1 * (VCpx.y - VOl.y) + 1} fontSize="2.8" fill="#94a3b8">Ol=90</text>
+          <text x={VOl.x + 0.6 * (VCpx.x - VOl.x) + 1} y={VOl.y + 0.6 * (VCpx.y - VOl.y) + 1} fontSize="2.8" fill="#94a3b8">Ol=40</text>
+          <text x={VOl.x + 0.9 * (VCpx.x - VOl.x) + 1} y={VOl.y + 0.9 * (VCpx.y - VOl.y) + 1} fontSize="2.8" fill="#94a3b8">Ol=10</text>
           {/* Punto interactivo */}
           <circle cx={pt.x} cy={pt.y} r="2.4" fill="#0d9488" stroke="white" strokeWidth="0.5" style={{ transition: 'cx 0.3s ease, cy 0.3s ease' }} />
         </svg>
@@ -390,13 +315,15 @@ const tasLine = (sio2: number) => 0.37 * sio2 - 14.3
 
 function tasName(sio2: number, alk: number): { name: string; serie: string } {
   const alcalina = alk > tasLine(sio2)
-  if (sio2 < 41) return { name: alcalina ? 'Picrobasalto (alcalino)' : 'Picrobasalto', serie: alcalina ? 'Serie alcalina' : 'Serie subalcalina' }
-  if (sio2 < 45) return { name: alcalina ? 'Basanita / Tefrita' : 'Basalto', serie: alcalina ? 'Serie alcalina' : 'Serie subalcalina (toleítica)' }
-  if (sio2 < 52) return { name: alcalina ? 'Trachibasalto' : 'Basalto', serie: alcalina ? 'Serie alcalina' : 'Serie subalcalina (toleítica)' }
-  if (sio2 < 57) return { name: alcalina ? 'Trachiandesita (latita)' : 'Basalto andesítico', serie: alcalina ? 'Serie alcalina' : 'Serie subalcalina (toleítica)' }
-  if (sio2 < 63) return { name: alcalina ? 'Traquita' : 'Andesita', serie: alcalina ? 'Serie alcalina' : 'Serie subalcalina (toleítica)' }
-  if (sio2 < 69) return { name: alcalina ? 'Traquidacita' : 'Dacita', serie: alcalina ? 'Serie alcalina' : 'Serie subalcalina (toleítica)' }
-  return { name: alcalina ? 'Riolita alcalina (comendita–pantelerita)' : 'Riolita', serie: alcalina ? 'Serie alcalina' : 'Serie subalcalina (toleítica)' }
+  // Subalcalina incluye las series toleítica y calcoalcalina (no se distinguen en el TAS)
+  const serie = alcalina ? 'Serie alcalina' : 'Serie subalcalina'
+  if (sio2 < 41) return { name: alcalina ? 'Foidita / Picrobasalto' : 'Picrobasalto', serie }
+  if (sio2 < 45) return { name: alcalina ? 'Basanita / Tefrita' : 'Picrobasalto / Basalto', serie }
+  if (sio2 < 52) return { name: alcalina ? 'Traquibasalto' : 'Basalto', serie }
+  if (sio2 < 57) return { name: alcalina ? 'Traquiandesita basáltica' : 'Andesita basáltica', serie }
+  if (sio2 < 63) return { name: alcalina ? 'Traquiandesita' : 'Andesita', serie }
+  if (sio2 < 69) return { name: alcalina ? 'Traquita / Traquidacita' : 'Dacita', serie }
+  return { name: alcalina ? 'Riolita alcalina (comendita–pantelerita)' : 'Riolita', serie }
 }
 
 function TasDiagram() {
@@ -508,9 +435,10 @@ function TasDiagram() {
 
 /** Clases granulométricas (límite superior en mm, escala logarítmica) */
 const WENTWORTH = [
-  { max: 256, label: 'Bloques / Cantos rodados', rock: 'Rudita (conglomerado/brecha)' },
-  { max: 64, label: 'Grava gruesa (rodados)', rock: 'Rudita (conglomerado)' },
-  { max: 2, label: 'Grava fina / arena muy gruesa', rock: 'Rudita / Arenita gruesa' },
+  { max: 256, label: 'Bloques', rock: 'Rudita (conglomerado/brecha)' },
+  { max: 64, label: 'Cantos', rock: 'Rudita (conglomerado/brecha)' },
+  { max: 2, label: 'Gránulos y guijarros (grava)', rock: 'Rudita (conglomerado/brecha)' },
+  { max: 1, label: 'Arena muy gruesa', rock: 'Arenita muy gruesa' },
   { max: 0.5, label: 'Arena gruesa', rock: 'Arenita gruesa' },
   { max: 0.25, label: 'Arena media', rock: 'Arenita media' },
   { max: 0.125, label: 'Arena fina', rock: 'Arenita fina' },
@@ -523,10 +451,11 @@ function wentworthClass(dmm: number) {
   return WENTWORTH.find((w) => dmm > w.max) ?? WENTWORTH[WENTWORTH.length - 1]
 }
 
-/** Posición logarítmica en la barra: 0.0001 mm → 256 mm mapeado a 0-100 % */
+/** Posición logarítmica en la barra: 256 mm a la izquierda → 0.0001 mm a la derecha
+    (mismo sentido que el control deslizante en φ) */
 const LOG_MIN = Math.log10(0.0001)
 const LOG_MAX = Math.log10(256)
-const logPos = (d: number) => ((Math.log10(Math.max(d, 0.0001)) - LOG_MIN) / (LOG_MAX - LOG_MIN)) * 100
+const logPos = (d: number) => (1 - (Math.log10(Math.max(d, 0.0001)) - LOG_MIN) / (LOG_MAX - LOG_MIN)) * 100
 
 function WentworthDiagram() {
   const [phi, setPhi] = useState(1) // tamaño en unidades phi (0 = 1 mm)
@@ -557,7 +486,7 @@ function WentworthDiagram() {
           onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect()
             const f = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-            const logd = LOG_MIN + f * (LOG_MAX - LOG_MIN)
+            const logd = LOG_MAX - f * (LOG_MAX - LOG_MIN)
             const p = -logd / Math.log10(2)
             setPhi(Math.round(Math.max(-8, Math.min(12, p)) * 2) / 2)
           }}
@@ -591,20 +520,6 @@ const VQf: V2 = { x: 50, y: 8 } // Cuarzo
 const VFl: V2 = { x: 8, y: 92 } // Feldespatos
 const VLl: V2 = { x: 92, y: 92 } // Fragmentos líticos
 
-function qflName(q: number, f: number, l: number): { name: string; interp: string } {
-  const t = q + f + l || 1
-  const Q = (q / t) * 100
-  const F = (f / t) * 100
-  const L = (l / t) * 100
-  if (Q >= 90) return { name: 'Cuarzoarenita', interp: 'Fuente madura y tectónicamente estable (cratón)' }
-  if (Q >= 75) {
-    return F >= L
-      ? { name: 'Subcuarzoarenita', interp: 'Transición hacia arcosa: relieve moderado' }
-      : { name: 'Sublitarenita', interp: 'Aporte de rocas sedimentarias vecinas' }
-  }
-  if (F >= L) return { name: 'Arcosa (feldespatoarenita)', interp: 'Relieve elevado / orogenia activa, poco madurada' }
-  return { name: 'Litarenita', interp: 'Relieve elevado, fuente de rocas plutónicas/volcánicas' }
-}
 
 function QflDiagram() {
   const [q, setQ] = useState(70)
@@ -628,7 +543,8 @@ function QflDiagram() {
         >
           <polygon points={`${VQf.x},${VQf.y} ${VFl.x},${VFl.y} ${VLl.x},${VLl.y}`} fill="white" stroke="#64748b" strokeWidth="0.6" />
           {[75, 90].map((pct) => {
-            const [x1, y1, x2, y2] = apexLine(VQf, VFl, VLl, pct / 100).split(/[ ,]/)
+            // fracción desde el ápice Q = 1 − Q
+            const [x1, y1, x2, y2] = apexLine(VQf, VFl, VLl, 1 - pct / 100).split(/[ ,]/)
             return <line key={pct} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cbd5e1" strokeWidth="0.35" strokeDasharray="1.5,1.5" />
           })}
           <line x1={VQf.x} y1={VQf.y} x2={(VFl.x + VLl.x) / 2} y2={VFl.y} stroke="#cbd5e1" strokeWidth="0.35" strokeDasharray="1.5,1.5" />
@@ -691,7 +607,7 @@ function PicardDiagram() {
           }}
         >
           <polygon points={`${VPiA.x},${VPiA.y} ${VPiL.x},${VPiL.y} ${VPiC.x},${VPiC.y}`} fill="white" stroke="#64748b" strokeWidth="0.6" />
-          {[0.67].map((frac) => {
+          {[0.33, 0.66].map((frac) => {
             const l1 = apexLine(VPiA, VPiL, VPiC, frac).split(/[ ,]/)
             const l2 = apexLine(VPiL, VPiA, VPiC, frac).split(/[ ,]/)
             const l3 = apexLine(VPiC, VPiA, VPiL, frac).split(/[ ,]/)
@@ -730,10 +646,11 @@ function folkName(alloc: number, mic: number, spar: number): string {
   const A = (alloc / t) * 100
   const M = (mic / t) * 100
   const S = (spar / t) * 100
-  if (A >= 90) return M >= S ? 'Biorrudita / Intrarrudita' : 'Esparrudita'
-  if (A < 10) return S >= M ? 'Esparita / Microesparita' : 'Micrita'
-  if (A < 50) return S >= M ? 'Bioesparita (dispersa)' : 'Biomicrita'
-  return S >= M ? 'Bioesparita (alóquemes dominantes)' : 'Biomicrita (alóquemes dominantes)'
+  // Folk (1959, 1962): >10 % de alóquemes → -esparita o -micrita según la matriz dominante
+  if (A < 1) return M >= S ? 'Micrita' : 'Esparita / microesparita'
+  if (A < 10) return M >= S ? 'Micrita fosilífera' : 'Esparita con alóquemes'
+  if (S >= M) return A >= 50 ? 'Bioesparita (bien lavada)' : 'Bioesparita (mal lavada)'
+  return A >= 50 ? 'Biomicrita empaquetada' : 'Biomicrita dispersa'
 }
 
 function FolkDiagram() {
@@ -757,7 +674,8 @@ function FolkDiagram() {
           }}
         >
           <polygon points={`${VFoAl.x},${VFoAl.y} ${VFoMi.x},${VFoMi.y} ${VFoEs.x},${VFoEs.y}`} fill="white" stroke="#64748b" strokeWidth="0.6" />
-          {[0.1, 0.5].map((frac) => {
+          {[0.5, 0.9].map((frac) => {
+            // fracción desde el ápice: 0.5 → alóquemes 50 %, 0.9 → alóquemes 10 %
             const [x1, y1, x2, y2] = apexLine(VFoAl, VFoMi, VFoEs, frac).split(/[ ,]/)
             return <line key={frac} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cbd5e1" strokeWidth="0.35" strokeDasharray="1.5,1.5" />
           })}
@@ -784,10 +702,10 @@ function FolkDiagram() {
 /* ─────────────────────────── Carbonatadas: Dunham ─────────────────────────── */
 
 function dunhamName(grains: number, mudSupported: boolean, withMud: boolean): string {
-  if (grains < 10) return 'Lutita carbonática (mudstone)'
-  if (mudSupported) return 'Lutita con granos (wackestone)'
-  if (withMud) return 'Caliza compacta (packstone)'
-  return 'Caliza areniscosa (grainstone)'
+  // Dunham (1962): primero el soporte (lodo o granos), luego el % de granos o la presencia de lodo
+  if (mudSupported) return grains < 10 ? 'Mudstone (caliza lodosa)' : 'Wackestone (lodo-soportada, >10 % de granos)'
+  if (withMud) return 'Packstone (grano-soportada, con lodo)'
+  return 'Grainstone (grano-soportada, sin lodo)'
 }
 
 function DunhamDiagram() {
@@ -837,10 +755,10 @@ function DunhamDiagram() {
 /* ─────────────────────────── Químicas: secuencia evaporítica ─────────────────────────── */
 
 const EVAP_ETAPAS = [
-  { until: 20, name: 'Calcita / Dolomía', note: 'Primeros carbonatos en precipitar' },
+  { until: 20, name: 'Calcita / Dolomita', note: 'Primeros carbonatos en precipitar' },
   { until: 45, name: 'Yeso / Anhidrita', note: 'Sulfatos de calcio' },
   { until: 75, name: 'Halita (sal gema)', note: 'Cloruro sódico' },
-  { until: 100, name: 'Sales de K y Mg (silita · carnalita)', note: 'Últimas en precipitar: potasio y magnesio' },
+  { until: 100, name: 'Sales de K y Mg (silvita · carnalita)', note: 'Últimas en precipitar: potasio y magnesio' },
 ]
 
 function EvaporitaDiagram() {
@@ -947,16 +865,18 @@ function CarbonDiagram() {
           }}
         >
           {(() => {
+            // La barra va de 40 % a 100 % de C: se usa la misma escala que el marcador
+            const toPct = (v: number) => ((v - min) / (100 - min)) * 100
             let left = 0
             return CARBON_ZONAS.map((z) => {
-              const width = z.until - left
+              const width = toPct(z.until) - left
               const seg = (
                 <div key={z.name} className={`absolute inset-y-0 ${z.color}`} style={{ left: `${left}%`, width: `${width}%`, transition: 'all 0.3s ease' }}>
                   <span className="absolute inset-x-0 top-1.5 text-center text-[10px] font-semibold text-white drop-shadow">{z.name}</span>
                   <span className="absolute inset-x-0 bottom-1 text-center text-[9px] text-white/90">húm. {z.humedad}</span>
                 </div>
               )
-              left = z.until
+              left = toPct(z.until)
               return seg
             })
           })()}
@@ -1432,12 +1352,18 @@ function AcfAkfDiagram() {
 
 export function IgneasContent() {
   return (
+            <Tabs defaultValue="diagramas" className="w-full">
+              <TabsList className="mb-4 grid h-auto w-full grid-cols-2 p-1">
+                <TabsTrigger value="diagramas" className="py-2.5 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-base">Clasificación en diagramas</TabsTrigger>
+                <TabsTrigger value="macro" className="py-2.5 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-base">Clasificación de muestra macro</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="diagramas">
             <Tabs defaultValue="qapf" className="w-full">
-              <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-4">
+              <TabsList className="mb-4 grid h-auto w-full bg-transparent gap-1 p-0 [&>button]:rounded-full [&>button]:border [&>button]:text-xs [&>button]:sm:text-sm [&>button]:data-[state=active]:border-primary/40 [&>button]:data-[state=active]:bg-primary/10 [&>button]:data-[state=active]:text-primary [&>button]:data-[state=active]:shadow-none grid-cols-3">
                 <TabsTrigger value="qapf">QAPF (Streckeisen)</TabsTrigger>
                 <TabsTrigger value="ultramaficas">Ultramáficas</TabsTrigger>
                 <TabsTrigger value="tas">Diagrama TAS</TabsTrigger>
-                <TabsTrigger value="identificar">Identificar en mano</TabsTrigger>
               </TabsList>
 
               <TabsContent value="qapf">
@@ -1498,7 +1424,10 @@ export function IgneasContent() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="identificar">
+            </Tabs>
+              </TabsContent>
+
+              <TabsContent value="macro">
                 <IdentificaIgneas />
               </TabsContent>
             </Tabs>
@@ -1507,13 +1436,19 @@ export function IgneasContent() {
 
 export function SedimentariasContent() {
   return (
+            <Tabs defaultValue="diagramas" className="w-full">
+              <TabsList className="mb-4 grid h-auto w-full grid-cols-2 p-1">
+                <TabsTrigger value="diagramas" className="py-2.5 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-base">Clasificación en diagramas</TabsTrigger>
+                <TabsTrigger value="macro" className="py-2.5 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-base">Clasificación de muestra macro</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="diagramas">
             <Tabs defaultValue="detriticas" className="w-full">
-              <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+              <TabsList className="mb-4 grid h-auto w-full bg-transparent gap-1 p-0 [&>button]:rounded-full [&>button]:border [&>button]:text-xs [&>button]:sm:text-sm [&>button]:data-[state=active]:border-primary/40 [&>button]:data-[state=active]:bg-primary/10 [&>button]:data-[state=active]:text-primary [&>button]:data-[state=active]:shadow-none grid-cols-2 sm:grid-cols-4">
                 <TabsTrigger value="detriticas">Detríticas</TabsTrigger>
                 <TabsTrigger value="carbonatadas">Carbonatadas</TabsTrigger>
                 <TabsTrigger value="quimicas">Químicas</TabsTrigger>
                 <TabsTrigger value="organicas">Orgánicas</TabsTrigger>
-                <TabsTrigger value="identificar">Identificar en mano</TabsTrigger>
               </TabsList>
 
               <TabsContent value="detriticas">
@@ -1611,7 +1546,10 @@ export function SedimentariasContent() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="identificar">
+            </Tabs>
+              </TabsContent>
+
+              <TabsContent value="macro">
                 <IdentificaSedimentarias />
               </TabsContent>
             </Tabs>
@@ -1620,12 +1558,18 @@ export function SedimentariasContent() {
 
 export function MetamorficasContent() {
   return (
+            <Tabs defaultValue="diagramas" className="w-full">
+              <TabsList className="mb-4 grid h-auto w-full grid-cols-2 p-1">
+                <TabsTrigger value="diagramas" className="py-2.5 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-base">Clasificación en diagramas</TabsTrigger>
+                <TabsTrigger value="macro" className="py-2.5 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-base">Clasificación de muestra macro</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="diagramas">
             <Tabs defaultValue="facies" className="w-full">
-              <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-4">
+              <TabsList className="mb-4 grid h-auto w-full bg-transparent gap-1 p-0 [&>button]:rounded-full [&>button]:border [&>button]:text-xs [&>button]:sm:text-sm [&>button]:data-[state=active]:border-primary/40 [&>button]:data-[state=active]:bg-primary/10 [&>button]:data-[state=active]:text-primary [&>button]:data-[state=active]:shadow-none grid-cols-3">
                 <TabsTrigger value="facies">Facies (P–T)</TabsTrigger>
                 <TabsTrigger value="acfakf">Triángulos ACF / AKF</TabsTrigger>
                 <TabsTrigger value="textural">Matriz textural (IUGS)</TabsTrigger>
-                <TabsTrigger value="identificar">Identificar en mano</TabsTrigger>
               </TabsList>
 
               <TabsContent value="facies">
@@ -1688,7 +1632,10 @@ export function MetamorficasContent() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="identificar">
+            </Tabs>
+              </TabsContent>
+
+              <TabsContent value="macro">
                 <IdentificaMetamorficas />
               </TabsContent>
             </Tabs>

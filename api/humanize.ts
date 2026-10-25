@@ -2,7 +2,9 @@
 // /api/humanize. La lógica compartida vive en humanize-handler.ts, que
 // también usa el middleware del servidor de desarrollo de Vite.
 
-import { handleHumanize } from './humanize-handler'
+// Con «.js»: el proyecto es ESM (type: module) y Node exige la extensión en las
+// importaciones relativas al ejecutarse en Vercel. TypeScript la resuelve al .ts.
+import { handleHumanize } from './humanize-handler.js'
 
 type Req = { method?: string; body?: unknown }
 type Res = {

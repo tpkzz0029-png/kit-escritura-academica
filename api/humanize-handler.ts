@@ -1,23 +1,39 @@
 // Proxy interno de humanización (SOLO SERVIDOR — nunca se importa desde el
 // cliente). Recibe { text } desde la app, añade el prompt maestro de
-// humanización y la clave del gateway Kimi, y llama al modelo.
+// humanización y llama a la Agent API de Perplexity.
 //
-// La clave se resuelve así: variable de entorno KIMI_AGENT_GW_KEY (la forma
-// recomendada al alojar la app, p. ej. en Vercel) → clave integrada de
-// respaldo (para que funcione sin configuración en local).
+// Configuración (variables de entorno del servidor; en Vercel: Settings →
+// Environment Variables; en local: archivo .env.local):
+//   PERPLEXITY_API_KEY  (obligatoria) clave de https://console.perplexity.ai
+//   PERPLEXITY_MODEL    (opcional) modelo o lista separada por comas
+//   AI_TIMEOUT_MS       (opcional) tiempo máximo de espera. Por defecto: 280 s en
+//                       Vercel (límite 300 s), 9,5 s en Netlify (límite 10 s) y
+//                       120 s en local.
 //
 // El navegador nunca ve la clave: solo puede llamar a /api/humanize.
 
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } })
   .process?.env ?? {}
 
-export const KIMI_GW_URL = 'https://agent-gw.kimi.com/coding/v1/chat/completions'
-export const KIMI_GW_MODEL = 'kimi-k2-0905-preview'
+export const PPLX_URL = 'https://api.perplexity.ai/v1/agent'
+/** Modelos rápidos con respaldo: si el primero falla, Perplexity prueba el siguiente. */
+const MODELOS_POR_DEFECTO = ['google/gemini-3.8-flash', 'openai/gpt-6-luna', 'perplexity/sonar']
 
-const FALLBACK_KEY = 'sk-kimi-RYzQwG45rmvB6uRhVFMJ4gg7eJQXHwHBade5Udh1seaDBQBoVUBSbeMDGLybvh9C'
+function modelos(): string[] {
+  const m = (env.PERPLEXITY_MODEL ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+  return (m.length ? m : MODELOS_POR_DEFECTO).slice(0, 5)
+}
 
-export function resolveGwKey(): string {
-  return (env.KIMI_AGENT_GW_KEY || FALLBACK_KEY).trim()
+function apiKey(): string {
+  return (env.PERPLEXITY_API_KEY ?? '').trim()
+}
+
+function timeoutMs(): number {
+  const n = Number(env.AI_TIMEOUT_MS)
+  if (Number.isFinite(n) && n > 1000) return n
+  if (env.VERCEL) return 280_000
+  if (env.NETLIFY) return 9_500
+  return 120_000
 }
 
 /* Prompt maestro de humanización (mismo que prompt-humanizador.txt): ataca
@@ -61,18 +77,32 @@ No escribas "(1)" ni "(2)", no uses marcado **: solo el texto, la línea --- y l
 
 const MAX_CHARS = 30000
 
-async function gwError(res: Response): Promise<string> {
+async function apiError(res: Response): Promise<string> {
+  let msg = ''
   try {
     const data = (await res.json()) as Record<string, unknown>
-    const err = data?.error as Record<string, unknown> | undefined
-    const msg = (err?.message ?? data?.error_description ?? data?.message ?? '') as string
-    if (res.status === 401 || res.status === 403)
-      return 'El gateway de Kimi rechazó la clave (401/403). Habría que renovarla.'
-    if (res.status === 429) return 'Límite de solicitudes del gateway superado (429). Espera un minuto y reintenta.'
-    return msg ? `El gateway respondió con error ${res.status}: ${msg}` : `El gateway respondió con error ${res.status}.`
+    const err = data?.error as Record<string, unknown> | string | undefined
+    msg = String((typeof err === 'string' ? err : err?.message) ?? data?.detail ?? data?.message ?? '')
   } catch {
-    return `El gateway respondió con error ${res.status}.`
+    /* cuerpo no JSON */
   }
+  if (res.status === 401 || res.status === 403)
+    return 'Perplexity rechazó la clave (401/403). Revisa la variable PERPLEXITY_API_KEY en Vercel.'
+  if (res.status === 402) return 'La cuenta de Perplexity no tiene saldo de API. Revisa la facturación en console.perplexity.ai.'
+  if (res.status === 429) return 'Límite de solicitudes de Perplexity superado (429). Espera un minuto y reintenta.'
+  return msg ? `Perplexity respondió con error ${res.status}: ${msg}` : `Perplexity respondió con error ${res.status}.`
+}
+
+/** Extrae el texto final de la respuesta de la Agent API (output[].content[].text) */
+function textoDeRespuesta(data: unknown): string {
+  const out = (data as { output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }> })?.output ?? []
+  return out
+    .filter((o) => o.type === 'message')
+    .flatMap((o) => o.content ?? [])
+    .filter((c) => c.type === 'output_text' && typeof c.text === 'string')
+    .map((c) => c.text as string)
+    .join('')
+    .trim()
 }
 
 /**
@@ -97,51 +127,62 @@ export async function handleHumanize(body: unknown): Promise<{
     }
   }
 
-  let res: Response
-  try {
-    res = await fetch(KIMI_GW_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${resolveGwKey()}`,
-      },
-      body: JSON.stringify({
-        model: KIMI_GW_MODEL,
-        temperature: 1,
-        max_tokens: 8192,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          {
-            role: 'user',
-            content: `TEXTO:\n\n${text}\n\nRecuerda el formato exacto: texto reescrito completo, una línea con solo ---, y la lista breve de cambios principales. Sin etiquetas (1)/(2).`,
-          },
-        ],
-      }),
-    })
-  } catch (e) {
-    // Sin este catch, un fallo de red/caída del gateway rompe la función y el
-    // host responde un 502 genérico. Devolvemos un error claro para reintentar.
-    const msg = e instanceof Error ? e.message : String(e)
+  const key = apiKey()
+  if (!key) {
     return {
-      status: 502,
-      json: { error: `No se pudo contactar con el gateway de IA (${msg}). Reintenta.` },
+      status: 500,
+      json: { error: 'Falta configurar PERPLEXITY_API_KEY en el servidor (Vercel → Settings → Environment Variables).' },
     }
   }
 
+  // Cortamos nosotros antes del límite del hosting para devolver un error claro
+  // en vez del 504 genérico.
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs())
+
+  let res: Response
+  try {
+    res = await fetch(PPLX_URL, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        models: modelos(),
+        instructions: SYSTEM_PROMPT,
+        input: `TEXTO:\n\n${text}\n\nRecuerda el formato exacto: texto reescrito completo, una línea con solo ---, y la lista breve de cambios principales. No añadas ideas, datos ni ejemplos que no estén en el texto original.`,
+        // Sin herramientas: no buscamos en la web, solo reescribimos.
+        temperature: 0.5,
+        max_output_tokens: 2500,
+        stream: false,
+      }),
+    })
+  } catch (e) {
+    clearTimeout(timer)
+    if ((e as Error)?.name === 'AbortError') {
+      return {
+        status: 504,
+        json: { error: 'La IA tardó demasiado en responder. Reintenta o humaniza un texto más corto.' },
+      }
+    }
+    const msg = e instanceof Error ? e.message : String(e)
+    return { status: 502, json: { error: `No se pudo contactar con Perplexity (${msg}). Reintenta.` } }
+  }
+  clearTimeout(timer)
+
   if (!res.ok) {
-    return { status: res.status, json: { error: await gwError(res) } }
+    return { status: res.status, json: { error: await apiError(res) } }
   }
 
-  const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: unknown }; finish_reason?: string }>
-  }
-  const choice = data?.choices?.[0]
-  const content = choice?.message?.content
-  const truncated = choice?.finish_reason === 'length'
-  if (!content || !String(content).trim()) {
+  const data = (await res.json()) as { status?: string; error?: { message?: string } | null; usage?: unknown }
+  const content = textoDeRespuesta(data)
+  const truncated = data?.status === 'incomplete'
+  if (!content) {
     return {
       status: 502,
-      json: { error: 'El modelo respondió sin contenido. Reintenta con un texto más corto.' },
+      json: { error: data?.error?.message || 'El modelo respondió sin contenido. Reintenta con un texto más corto.' },
     }
   }
 

@@ -1,45 +1,21 @@
 import { Link } from 'react-router'
-import { ArrowRight, Gem, Mountain } from 'lucide-react'
+import { ArrowRight, ClipboardPen, Gem, Mountain } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import GeoShell from '@/components/GeoShell'
 
 const SECCIONES = [
   {
-    to: '/geologia/igneas',
-    gradient: 'linear-gradient(90deg,#ef4444,#f97316)',
+    to: '/geologia/rocas',
+    gradient: 'linear-gradient(90deg,#ef4444,#f59e0b,#8b5cf6)',
     border: 'border-red-200/70 dark:border-red-900/50',
     chip: 'bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400',
     btn: 'bg-red-600 hover:bg-red-700',
     icon: Mountain,
-    titulo: 'Rocas ígneas',
+    titulo: 'Rocas',
     descripcion:
-      'Diagrama QAPF de Streckeisen (plutónicas y volcánicas), triángulo de ultramáficas, diagrama TAS químico y cuestionario de identificación en mano paso a paso.',
-    cta: 'Abrir ígneas',
-  },
-  {
-    to: '/geologia/sedimentarias',
-    gradient: 'linear-gradient(90deg,#f59e0b,#eab308)',
-    border: 'border-amber-200/70 dark:border-amber-900/50',
-    chip: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400',
-    btn: 'bg-amber-600 hover:bg-amber-700',
-    icon: Mountain,
-    titulo: 'Rocas sedimentarias',
-    descripcion:
-      'Escala de Wentworth, triángulos QFL y de Picard para detríticas, clasificaciones de Folk y Dunham para carbonatadas, evaporitas, sílices, carbones e identificación en mano.',
-    cta: 'Abrir sedimentarias',
-  },
-  {
-    to: '/geologia/metamorficas',
-    gradient: 'linear-gradient(90deg,#8b5cf6,#c084fc)',
-    border: 'border-violet-200/70 dark:border-violet-900/50',
-    chip: 'bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400',
-    btn: 'bg-violet-600 hover:bg-violet-700',
-    icon: Mountain,
-    titulo: 'Rocas metamórficas',
-    descripcion:
-      'Diagrama de facies (presión–temperatura), triángulos de composición ACF/AKF, matriz textural IUGS y cuestionario de identificación en mano con protolitos.',
-    cta: 'Abrir metamórficas',
+      'Ígneas, sedimentarias y metamórficas en pestañas: QAPF, TAS, Wentworth, Folk, Dunham, facies, ACF/AKF y cuestionarios de identificación en mano.',
+    cta: 'Abrir rocas',
   },
   {
     to: '/geologia/minerales',
@@ -50,15 +26,27 @@ const SECCIONES = [
     icon: Gem,
     titulo: 'Minerales',
     descripcion:
-      'Fichas de identificación en muestra de mano agrupadas por clases químicas (Strunz–Dana): nativos, sulfuros, óxidos, haluros, carbonatos, sulfatos, fosfatos y silicatos.',
+      'Fichas de identificación en muestra de mano agrupadas por clases químicas (Strunz–Dana), con fotos de cada mineral.',
     cta: 'Abrir minerales',
+  },
+  {
+    to: '/geologia/descripcion',
+    gradient: 'linear-gradient(90deg,#10b981,#14b8a6)',
+    border: 'border-emerald-200/70 dark:border-emerald-900/50',
+    chip: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400',
+    btn: 'bg-emerald-600 hover:bg-emerald-700',
+    icon: ClipboardPen,
+    titulo: 'Descripción de rocas',
+    descripcion:
+      'Responde preguntas sobre tu muestra de mano y obtén la descripción en prosa lista para copiar en tu informe.',
+    cta: 'Describir una roca',
   },
 ]
 
 export default function GeologiaPage() {
   return (
-    <GeoShell showAlert={false}>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <GeoShell showAlert={false} showNav={false}>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SECCIONES.map(({ to, gradient, border, chip, btn, icon: Icon, titulo, descripcion, cta }) => (
           <Card
             key={to}

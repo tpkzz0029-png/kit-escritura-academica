@@ -1,6 +1,6 @@
 import path from "path"
 import react from "@vitejs/plugin-react"
-import { defineConfig, type Plugin } from "vite"
+import { defineConfig, loadEnv, type Plugin } from "vite"
 import { inspectAttr } from 'kimi-plugin-inspect-react'
 import { handleHumanize } from './api/humanize-handler'
 
@@ -38,8 +38,17 @@ function humanizeApi(): Plugin {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  base: './',
+export default defineConfig(({ mode }) => {
+  // En local, la clave de la IA se lee de .env.local (PERPLEXITY_API_KEY=...).
+  // Ese archivo no se sube a GitHub (está en .gitignore).
+  const env = loadEnv(mode, process.cwd(), '')
+  for (const k of ['PERPLEXITY_API_KEY', 'PERPLEXITY_MODEL', 'AI_TIMEOUT_MS']) {
+    if (env[k] && !process.env[k]) process.env[k] = env[k]
+  }
+  return {
+  // '/' (no './'): con BrowserRouter, las rutas anidadas como /geologia/igneas
+  // necesitan rutas absolutas a /assets; con './' la página queda en blanco al recargar.
+  base: '/',
   plugins: [inspectAttr(), react(), humanizeApi()],
   server: {
     port: 3000,
@@ -49,4 +58,5 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  }
 });

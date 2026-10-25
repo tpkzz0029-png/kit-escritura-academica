@@ -365,7 +365,7 @@ export default function ArbolSedimentarias() {
                   <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">{best.confirm}</p>
                   {alive.length > 1 && (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      También encaja con: {alive.slice(1).map((c) => c.nombre).join(', ')}. Compara con el Anexo D-3.
+                      También encaja con: {alive.filter((c) => c !== best).map((c) => c.nombre).join(', ')}. Compara con el Anexo D-3.
                     </p>
                   )}
                 </>

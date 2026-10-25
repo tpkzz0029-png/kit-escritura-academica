@@ -1,24 +1,31 @@
 import type { ReactNode } from 'react'
-import { Link, NavLink } from 'react-router'
-import { GraduationCap, Mountain } from 'lucide-react'
+import { Link, NavLink, useLocation } from 'react-router'
+import { FileText, GraduationCap, Mountain, ScanLine, SearchCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// Solo Geología está visible en la web; las demás herramientas
-// (conversor, detector, plagio) quedan ocultas temporalmente.
-const NAV = [{ to: '/geologia', icon: Mountain, label: 'Geología' }]
+// Cada sección muestra solo sus propios enlaces: en Geología solo «Geología»,
+// en las herramientas de escritura solo esas tres.
+const NAV_HERRAMIENTAS = [
+  { to: '/conversor', icon: FileText, label: 'Conversor' },
+  { to: '/detector', icon: ScanLine, label: 'Detector IA' },
+  { to: '/plagio', icon: SearchCheck, label: 'Plagio' },
+]
+const NAV_ESTUDIO = [{ to: '/geologia', icon: Mountain, label: 'Geología' }]
 
 /** Barra de navegación + contenedor común de las páginas de herramientas */
 export default function PageShell({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
+  const nav = pathname.startsWith('/geologia') ? NAV_ESTUDIO : NAV_HERRAMIENTAS
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <header className="sticky top-0 z-20 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
           <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
             <GraduationCap className="h-5 w-5 text-primary" />
-            Geología interactiva
+            Kit académico
           </Link>
           <nav className="flex flex-wrap items-center gap-1 md:ml-auto">
-            {NAV.map(({ to, icon: Icon, label }) => (
+            {nav.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={to}

@@ -193,7 +193,7 @@ export default function ArbolIgneas() {
       if (k === 'crist') return TEXTO_CRIST[answers[k] || '']
       if (k === 'vesic') return answers[k] === 'si' ? 'con vesículas' : 'vidrio compacto'
       if (k === 'tama') return answers[k] === 'faneritica' ? 'fanerítica' : 'afanítica'
-      if (k === 'grano') return 'grano ' + answers[k]
+      if (k === 'grano') return 'grano ' + (answers[k] || '').replace('-', ' ')
       if (k === 'dist') return answers[k] === 'porfidica' ? 'porfídica' : answers[k] === 'equigranular' ? 'equigranular' : 'inequigranular'
       if (k === 'comp') return answers[k] === 'ultramafica' ? 'ultramáfica' : (answers[k] || '')
       if (k === 'otras') return answers[k] === 'ninguna' ? 'sin textura especial' : answers[k] === 'vesicular' ? 'vesicular' : answers[k] === 'piro-fina' ? 'piroclástica fina (toba)' : 'piroclástica gruesa (brecha)'
@@ -308,7 +308,7 @@ export default function ArbolIgneas() {
                   )}
                   {alive.length > 1 && (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      También encaja con: {alive.slice(1).map((c) => c.nombre).join(', ')}. Compara con la tabla del Anexo C-2.
+                      También encaja con: {alive.filter((c) => c !== best).map((c) => c.nombre).join(', ')}. Compara con la tabla del Anexo C-2.
                     </p>
                   )}
                 </>

@@ -1,67 +1,59 @@
-# Despliegue
+# Despliegue en Vercel (con el humanizador con IA)
 
-## Por qué el humanizador de IA da 404 en un hosting estático
+El modo «IA» del humanizador envía el texto a `POST /api/humanize`, una función del
+servidor (`api/humanize.ts`) que llama a la **Agent API de Perplexity**. La clave vive
+solo en el servidor; el navegador nunca la ve.
 
-El modo «IA» del humanizador envía el texto a `POST /api/humanize`, un pequeño
-servicio del lado del servidor (la clave del modelo vive ahí, nunca en el
-navegador). Un hosting que solo sirve archivos estáticos (carpeta `dist/`)
-no ejecuta ese servicio → error 404.
+En el plan gratuito de Vercel (Hobby) cada función puede durar hasta **300 s**, así
+que la IA no se corta aunque tarde (en Netlify gratis el límite es de 10 s).
 
-En ese caso la app **no se rompe**: detecta el 404 y aplica automáticamente
-el parafraseo local (traducción de ida y vuelta + reglas de humanización),
-que funciona 100 % en el navegador. Pero para la reescritura completa con IA
-hay que desplegar en un servidor que ejecute funciones.
+## 1. Consigue la clave de Perplexity
 
-## Opción recomendada: Vercel (gratis, incluye la función /api/humanize)
+1. Entra en <https://console.perplexity.ai>.
+2. Agrega un método de pago: la API se cobra por uso y es aparte de la suscripción Pro.
+3. Crea una **API key** (empieza por `pplx-`). No la pegues en el código.
 
-El proyecto ya está preparado: `api/humanize.ts` se despliega como función
-serverless automáticamente y `vercel.json` resuelve las rutas de la app.
+## 2. Sube el proyecto a GitHub
 
-1. Sube la carpeta `app/` a un repositorio de GitHub.
-2. En [vercel.com](https://vercel.com) → **Add New Project** → importa el repo.
-3. Vercel detecta Vite automáticamente (build: `npm run build`, salida: `dist`).
-4. (Opcional) **Settings → Environment Variables**: añade `KIMI_AGENT_GW_KEY`
-   con tu clave del gateway Kimi para tener límites propios. Sin ella, la app
-   usa la clave integrada de respaldo.
-5. **Deploy**. Listo: el humanizador con IA funciona en la URL pública.
+Antes de subir, comprueba en tu computador que compila: `npm run build`.
+Si hay errores, Vercel también fallará al publicar.
 
-## Opción alternativa: Netlify (gratis, con la función incluida)
+## 3. Crea el proyecto en Vercel
 
-El proyecto también trae todo lo necesario para Netlify:
+1. Entra en <https://vercel.com> con tu cuenta de GitHub.
+2. **Add New → Project** → importa el repositorio.
+3. Vercel detecta Vite y lee `vercel.json` (build `npm run build`, salida `dist`,
+   función `api/humanize.ts` con 300 s y redirección de las rutas a la app).
+   Si el proyecto está en una subcarpeta del repositorio (por ejemplo `app/`), elígela
+   en **Root Directory**.
+4. Antes de pulsar Deploy, abre **Environment Variables** y agrega:
 
-- `netlify/functions/humanize.ts` → función serverless con el mismo motor.
-- `netlify.toml` → build (`npm run build` → `dist`), reenvío de
-  `/api/humanize` a la función y fallback de la SPA.
+| Variable | Valor |
+| --- | --- |
+| `PERPLEXITY_API_KEY` | tu clave `pplx-…` |
+| `PERPLEXITY_MODEL` | *(opcional)* p. ej. `google/gemini-3.8-flash,openai/gpt-6-luna,perplexity/sonar` |
 
-**Importante:** en Netlify **no** sirve arrastrar la carpeta `dist/` con
-«Drop» (eso solo sirve archivos estáticos, sin funciones → volverías al mismo
-404). Tienes dos formas válidas:
+5. **Deploy**. Cada `git push` a la rama principal vuelve a publicar solo.
 
-**A) Conectar el repositorio (recomendado):**
-1. Sube la carpeta `app/` a GitHub (o actualiza el repo si ya existe).
-2. En [app.netlify.com](https://app.netlify.com) → **Add new site → Import an
-   existing project** → elige el repo.
-3. En **Base directory** escribe `app` (si el repo tiene `app/` en la raíz);
-   Netlify leerá el `netlify.toml` de esa carpeta (build `npm run build`,
-   publish `dist`).
-4. (Opcional) **Site settings → Environment variables**: añade
-   `KIMI_AGENT_GW_KEY`. Sin ella se usa la clave de respaldo integrada.
-5. **Deploy**. Cada `git push` a la rama principal redepliega solo.
+Si agregas o cambias la variable después, ve a **Deployments → ⋯ → Redeploy**.
 
-**B) Netlify CLI:**
-```bash
-cd app
-npm i -g netlify-cli
-netlify deploy --build --prod
-```
-(usa tu cuenta y detecta el `netlify.toml`).
+## 4. Prueba
 
-Después de cualquiera de las dos, el humanizador con IA funcionará en la URL
-pública de Netlify sin el aviso de «servidor no disponible».
+Abre el Detector, pega un párrafo y usa «Humanizar con IA». Si algo falla, la app
+muestra el motivo: clave inválida (401/403), sin saldo (402), demasiadas peticiones
+(429) o tiempo agotado. Los registros de la función están en Vercel → tu proyecto →
+**Logs**.
 
-## Si prefieres tu host actual (estático)
+## En tu computador (desarrollo)
 
-La app funciona completa excepto la reescritura con IA del humanizador, que
-usará el parafraseo local como respaldo (avisando en pantalla). Ninguna otra
-herramienta depende del servidor: conversor, detector, plagio, corrector y
-geología corren íntegramente en el navegador.
+1. Copia `.env.example` como `.env.local` y pon tu clave en `PERPLEXITY_API_KEY`.
+2. `npm run dev`. El servidor de Vite atiende `/api/humanize` con la misma lógica.
+
+`.env.local` no se sube a GitHub (está en `.gitignore`).
+
+## Alternativa: Netlify
+
+El proyecto conserva `netlify.toml` y `netlify/functions/humanize.ts`. Allí la función
+se corta a los 10 s: publica desde GitHub (no arrastrando `dist`), configura
+`PERPLEXITY_API_KEY` y baja el tamaño de los trozos en `src/lib/aiHumanize.ts`
+(`CHUNK_TARGET` ≈ 1200 y `CHUNK_MAX` ≈ 1600).

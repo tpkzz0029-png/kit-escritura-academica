@@ -1,51 +1,47 @@
 import type { ReactNode } from 'react'
-import { NavLink } from 'react-router'
-import { Info } from 'lucide-react'
+import { Link, useLocation } from 'react-router'
+import { ArrowLeft, Info } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import PageShell from '@/components/PageShell'
-import { cn } from '@/lib/utils'
 
 export const GEO_NAV = [
-  { to: '/geologia/igneas', label: 'Rocas ígneas' },
-  { to: '/geologia/sedimentarias', label: 'Rocas sedimentarias' },
-  { to: '/geologia/metamorficas', label: 'Rocas metamórficas' },
+  { to: '/geologia/rocas', label: 'Rocas' },
   { to: '/geologia/minerales', label: 'Minerales' },
+  { to: '/geologia/descripcion', label: 'Descripción de rocas' },
 ]
 
-/** Contenedor común de las páginas de geología: subnavegación + aviso de referencia */
-export default function GeoShell({ children, showAlert = true }: { children: ReactNode; showAlert?: boolean }) {
+/** Contenedor común de las páginas de geología: título de la sección + aviso de referencia */
+export default function GeoShell({
+  children,
+  showAlert = true,
+  showNav = true,
+  header,
+}: {
+  children: ReactNode
+  showAlert?: boolean
+  /** Título de la sección actual (p. ej. «Rocas ígneas»). Se oculta en la portada de Geología. */
+  showNav?: boolean
+  /** Encabezado propio que reemplaza al título por defecto (p. ej. con imagen de fondo) */
+  header?: ReactNode
+}) {
+  const { pathname } = useLocation()
+  const actual = GEO_NAV.find((n) => pathname.startsWith(n.to))
   return (
     <PageShell>
-      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <NavLink
-          to="/geologia"
-          end
-          className={({ isActive }) =>
-            cn('text-sm font-semibold', isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')
-          }
-        >
-          Geología
-        </NavLink>
-        <span className="text-muted-foreground/50">/</span>
-        <nav className="flex flex-wrap items-center gap-1">
-          {GEO_NAV.map(({ to, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                cn(
-                  'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )
-              }
-            >
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-      </div>
+      {header}
+      {!header && showNav && actual && (
+        <div className="mb-6 flex items-center gap-3">
+          <Link
+            to="/?pestana=estudio"
+            aria-label="Volver al inicio"
+            title="Volver al inicio"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <h1 className="text-2xl font-bold tracking-tight">{actual.label}</h1>
+        </div>
+      )}
 
       {showAlert && (
         <Alert className="mb-6">

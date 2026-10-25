@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { Gem, Info, Table2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Gem, Info, Search, X } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
 /* Fotos reales de cada mineral (Wikimedia Commons, dominio público / CC),
    descargadas en public/minerales/ con scripts/descargar_minerales.py.
@@ -118,46 +118,6 @@ const IMAGENES: Record<string, string> = {
   Mellite: 'mellite',
   'Asfalto (bitumen)': 'asfalto',
   'Whewellita (oxalato cálcico)': 'whewellita',
-}
-
-/** Miniatura circular del mineral; al hacer clic abre la foto ampliada. */
-function MineralPhoto({ nombre }: { nombre: string }) {
-  const [open, setOpen] = useState(false)
-  const slug = IMAGENES[nombre]
-  if (!slug) return null
-  const src = `/minerales/${slug}.jpg`
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title={`Ver foto de ${nombre}`}
-        className="block shrink-0 overflow-hidden rounded-md border bg-muted transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <img
-          src={src}
-          alt={`Muestra de ${nombre}`}
-          loading="lazy"
-          className="h-12 w-12 object-cover"
-        />
-      </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{nombre}</DialogTitle>
-            <DialogDescription>
-              Muestra de mano de referencia. Foto: Wikimedia Commons (licencia libre).
-            </DialogDescription>
-          </DialogHeader>
-          <img
-            src={src}
-            alt={`Muestra ampliada de ${nombre}`}
-            className="mx-auto max-h-[65vh] w-auto rounded-lg border object-contain"
-          />
-        </DialogContent>
-      </Dialog>
-    </>
-  )
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -405,148 +365,288 @@ const ORGANICOS: Mineral[] = [
   { nombre: 'Whewellita (oxalato cálcico)', formula: 'CaC₂O₄·H₂O', mohs: '2,5–3', color: 'Blanco a amarillento', raya: 'Blanca', brillo: 'Vítreo', exfoliacion: 'Perfecta {101}', yacimiento: 'Cristales en hulla y cavidades sedimentarias; raro en sedimentos.' },
 ]
 
-function MineralTable({ minerales }: { minerales: Mineral[] }) {
-  return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full min-w-[760px] text-sm">
-        <thead>
-          <tr className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <th className="px-3 py-2.5 font-semibold">Mineral</th>
-            <th className="px-3 py-2.5 font-semibold">Fórmula</th>
-            <th className="px-3 py-2.5 font-semibold">Mohs</th>
-            <th className="px-3 py-2.5 font-semibold">Color</th>
-            <th className="px-3 py-2.5 font-semibold">Raya</th>
-            <th className="px-3 py-2.5 font-semibold">Brillo</th>
-            <th className="px-3 py-2.5 font-semibold">Exfoliación / fractura</th>
-            <th className="px-3 py-2.5 font-semibold">Yacimiento y usos</th>
-          </tr>
-        </thead>
-        <tbody>
-          {minerales.map((m, i) => (
-            <tr key={m.nombre} className={i % 2 === 0 ? 'bg-background' : 'bg-muted/25'}>
-              <td className="px-3 py-2">
-                <div className="flex items-center gap-2.5">
-                  <MineralPhoto nombre={m.nombre} />
-                  <span className="font-medium">{m.nombre}</span>
-                </div>
-              </td>
-              <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{m.formula}</td>
-              <td className="px-3 py-2">
-                <Badge variant="secondary" className="font-mono text-xs">{m.mohs}</Badge>
-              </td>
-              <td className="px-3 py-2">{m.color}</td>
-              <td className="px-3 py-2">{m.raya}</td>
-              <td className="px-3 py-2">{m.brillo}</td>
-              <td className="px-3 py-2">{m.exfoliacion}</td>
-              <td className="px-3 py-2 text-muted-foreground">{m.yacimiento}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+/* ─────────────────────────── Galería con buscador ─────────────────────────── */
+
+type Item = Mineral & { grupoId: string; grupo: string; subId?: string; subgrupo?: string }
+
+const TODOS: Item[] = [
+  ...GRUPOS.flatMap((g) => g.minerales.map((m) => ({ ...m, grupoId: g.id, grupo: g.nombre }))),
+  ...SILICATOS.flatMap((s) =>
+    s.minerales.map((m) => ({ ...m, grupoId: 'silicatos', grupo: 'Silicatos', subId: s.id, subgrupo: s.nombre }))
+  ),
+  ...ORGANICOS.map((m) => ({ ...m, grupoId: 'organicos', grupo: 'Minerales orgánicos' })),
+]
+
+/** Secciones de la galería, en el orden de Strunz–Dana; los silicatos van por subgrupo */
+const SECCIONES: { id: string; grupoId: string; subId?: string; titulo: string; nota?: string }[] = [
+  ...GRUPOS.map((g) => ({ id: g.id, grupoId: g.id, titulo: g.nombre })),
+  ...SILICATOS.map((s) => ({ id: `sil-${s.id}`, grupoId: 'silicatos', subId: s.id, titulo: `Silicatos · ${s.nombre}`, nota: s.estructura })),
+  { id: 'organicos', grupoId: 'organicos', titulo: 'Minerales orgánicos' },
+]
+
+const FILTRO_GRUPOS = [
+  { id: 'todos', nombre: 'Todos' },
+  ...GRUPOS.map((g) => ({ id: g.id, nombre: g.nombre })),
+  { id: 'silicatos', nombre: 'Silicatos' },
+  { id: 'organicos', nombre: 'Orgánicos' },
+]
+
+/** Dureza Mohs media a partir de textos como «2,5–3» (NaN si no es numérica, p. ej. «Líquido») */
+function mohsMedio(mohs: string): number {
+  const nums = (mohs.match(/\d+(?:,\d+)?/g) ?? []).map((n) => Number(n.replace(',', '.')))
+  if (!nums.length) return NaN
+  return (Math.min(...nums) + Math.max(...nums)) / 2
 }
 
+const DUREZAS = [
+  { id: 'todas', nombre: 'Cualquier dureza', test: () => true },
+  { id: 'blanda', nombre: 'Blanda · se raya con la uña (< 3)', test: (h: number) => h < 3 },
+  { id: 'media', nombre: 'Media · se raya con navaja (3–5,5)', test: (h: number) => h >= 3 && h < 6 },
+  { id: 'dura', nombre: 'Dura · raya el vidrio (≥ 6)', test: (h: number) => h >= 6 },
+]
+
+const BRILLOS = [
+  { id: 'todos', nombre: 'Cualquier brillo', claves: [] as string[] },
+  { id: 'metalico', nombre: 'Metálico', claves: ['metálico'] },
+  { id: 'vitreo', nombre: 'Vítreo', claves: ['vítreo'] },
+  { id: 'adamantino', nombre: 'Adamantino', claves: ['adamantino'] },
+  { id: 'resinoso', nombre: 'Resinoso / grasiento', claves: ['resinoso', 'grasiento', 'ceroso', 'ceráceo'] },
+  { id: 'perlado', nombre: 'Perlado / sedoso', claves: ['perlado', 'sedoso', 'nacarado'] },
+  { id: 'terroso', nombre: 'Terroso', claves: ['terroso'] },
+]
+
+const sinTildes = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+function Foto({ nombre, className }: { nombre: string; className?: string }) {
+  const slug = IMAGENES[nombre]
+  if (!slug) {
+    return (
+      <div className={cn('flex items-center justify-center bg-muted text-muted-foreground', className)}>
+        <Gem className="h-8 w-8" />
+      </div>
+    )
+  }
+  return <img src={`/minerales/${slug}.jpg`} alt={`Muestra de ${nombre}`} loading="lazy" className={cn('object-cover', className)} />
+}
+
+const PROPIEDADES: { key: keyof Mineral; label: string }[] = [
+  { key: 'formula', label: 'Fórmula' },
+  { key: 'mohs', label: 'Dureza Mohs' },
+  { key: 'color', label: 'Color' },
+  { key: 'raya', label: 'Raya' },
+  { key: 'brillo', label: 'Brillo' },
+  { key: 'exfoliacion', label: 'Exfoliación / fractura' },
+  { key: 'yacimiento', label: 'Yacimiento y usos' },
+]
+
+const selectCls =
+  'h-9 rounded-md border border-input bg-background px-2.5 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+
 export default function MineralesPanel() {
+  const [q, setQ] = useState('')
+  const [grupo, setGrupo] = useState('todos')
+  const [sub, setSub] = useState('todos')
+  const [dureza, setDureza] = useState('todas')
+  const [brillo, setBrillo] = useState('todos')
+  const [abierto, setAbierto] = useState<Item | null>(null)
+
+  const lista = useMemo(() => {
+    const texto = sinTildes(q.trim())
+    const d = DUREZAS.find((x) => x.id === dureza)!
+    const b = BRILLOS.find((x) => x.id === brillo)!
+    return TODOS.filter((m) => {
+      if (grupo !== 'todos' && m.grupoId !== grupo) return false
+      if (grupo === 'silicatos' && sub !== 'todos' && m.subId !== sub) return false
+      if (texto && !sinTildes(`${m.nombre} ${m.formula} ${m.color}`).includes(texto)) return false
+      if (dureza !== 'todas') {
+        const h = mohsMedio(m.mohs)
+        if (Number.isNaN(h) || !d.test(h)) return false
+      }
+      if (b.claves.length && !b.claves.some((k) => m.brillo.toLowerCase().includes(k))) return false
+      return true
+    })
+  }, [q, grupo, sub, dureza, brillo])
+
+  const secciones = useMemo(
+    () =>
+      SECCIONES.map((sec) => ({
+        ...sec,
+        items: lista.filter((m) => m.grupoId === sec.grupoId && (!sec.subId || m.subId === sec.subId)),
+      })).filter((sec) => sec.items.length > 0),
+    [lista]
+  )
+
+  const hayFiltros = q || grupo !== 'todos' || sub !== 'todos' || dureza !== 'todas' || brillo !== 'todos'
+  const limpiar = () => {
+    setQ('')
+    setGrupo('todos')
+    setSub('todos')
+    setDureza('todas')
+    setBrillo('todos')
+  }
+  const resumenGrupo = GRUPOS.find((g) => g.id === grupo)?.resumen
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>Clasificación química de Strunz–Dana (Manual de Mineralogía, Klein & Hurlbut)</AlertTitle>
+        <AlertTitle>Clasificación química de Strunz–Dana</AlertTitle>
         <AlertDescription>
-          Los minerales se agrupan por el <strong>anión o grupo aniónico dominante</strong>, porque los que
-          comparten anión se parecen más entre sí (color, raya, brillo, yacimiento) que los que comparten
-          catión. Cada ficha resume las propiedades diagnósticas de muestra de mano: fórmula, dureza Mohs,
-          color, raya, brillo, exfoliación y yacimiento con sus usos. Pulsa la miniatura de cada mineral
-          para ver su foto de muestra ampliada.
+          Los minerales se agrupan por su anión dominante. Busca por nombre, fórmula o color, filtra por
+          grupo, dureza o brillo, y toca una foto para ver su ficha completa.
         </AlertDescription>
       </Alert>
 
-      <Tabs defaultValue="nativos" className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 sm:grid-cols-5">
-          {GRUPOS.map((g) => (
-            <TabsTrigger key={g.id} value={g.id} className="whitespace-normal px-2 py-1.5 text-xs leading-tight">
+      {/* Buscador y filtros */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar: cuarzo, CaCO₃, verde…"
+              className="pl-9"
+              aria-label="Buscar mineral"
+            />
+          </div>
+          <select value={dureza} onChange={(e) => setDureza(e.target.value)} className={selectCls} aria-label="Filtrar por dureza">
+            {DUREZAS.map((d) => (
+              <option key={d.id} value={d.id}>{d.nombre}</option>
+            ))}
+          </select>
+          <select value={brillo} onChange={(e) => setBrillo(e.target.value)} className={selectCls} aria-label="Filtrar por brillo">
+            {BRILLOS.map((b) => (
+              <option key={b.id} value={b.id}>{b.nombre}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {FILTRO_GRUPOS.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => {
+                setGrupo(g.id)
+                setSub('todos')
+              }}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                grupo === g.id
+                  ? 'border-sky-600 bg-sky-600 text-white'
+                  : 'bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
               {g.nombre}
-            </TabsTrigger>
+            </button>
           ))}
-          <TabsTrigger value="silicatos" className="whitespace-normal px-2 py-1.5 text-xs leading-tight">
-            Silicatos
-          </TabsTrigger>
-          <TabsTrigger value="organicos" className="whitespace-normal px-2 py-1.5 text-xs leading-tight">
-            Minerales orgánicos
-          </TabsTrigger>
-        </TabsList>
+        </div>
+        {grupo === 'silicatos' && (
+          <div className="flex flex-wrap gap-1.5 border-l-2 border-sky-200 pl-3 dark:border-sky-900">
+            {[{ id: 'todos', nombre: 'Todos los silicatos' }, ...SILICATOS].map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                onClick={() => setSub(x.id)}
+                className={cn(
+                  'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+                  sub === x.id
+                    ? 'border-sky-300 bg-sky-50 font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300'
+                    : 'bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                {x.nombre}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            {lista.length} {lista.length === 1 ? 'mineral' : 'minerales'}
+          </span>
+          {hayFiltros && (
+            <button type="button" onClick={limpiar} className="flex items-center gap-1 hover:text-foreground">
+              <X className="h-3.5 w-3.5" /> Quitar filtros
+            </button>
+          )}
+        </div>
+        {resumenGrupo && <p className="text-sm text-muted-foreground">{resumenGrupo}</p>}
+      </div>
 
-        {GRUPOS.map((g) => (
-          <TabsContent key={g.id} value={g.id}>
-            <Card className="card-accent">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Gem className="h-5 w-5 text-primary" />
-                  {g.nombre}
-                </CardTitle>
-                <CardDescription>{g.resumen}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <MineralTable minerales={g.minerales} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
-
-        <TabsContent value="silicatos">
-          <Card className="card-accent">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Gem className="h-5 w-5 text-primary" />
-                Silicatos
-              </CardTitle>
-              <CardDescription>
-                La clase más abundante de la corteza terrestre (~80 % de los minerales conocidos).
-                Se subdividen según la disposición estructural de los tetraedros SiO₄ (criterio de
-                Bragg-Goldschmidt): aislados, en pares, en anillos, en cadenas, en láminas o en red.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="neso" className="w-full">
-                <TabsList className="mb-4 grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-6">
-                  {SILICATOS.map((s) => (
-                    <TabsTrigger key={s.id} value={s.id} className="px-2 py-1.5 text-xs">
-                      {s.nombre}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                {SILICATOS.map((s) => (
-                  <TabsContent key={s.id} value={s.id}>
-                    <p className="mb-3 flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Table2 className="h-4 w-4" /> {s.estructura}
-                    </p>
-                    <MineralTable minerales={s.minerales} />
-                  </TabsContent>
+      {/* Galería */}
+      {secciones.length ? (
+        <div className="space-y-8">
+          {secciones.map((sec) => (
+            <section key={sec.id}>
+              <div className="mb-3 flex flex-wrap items-baseline gap-x-2 border-b pb-2">
+                <h3 className="text-base font-semibold">{sec.titulo}</h3>
+                <span className="text-xs text-muted-foreground">{sec.items.length}</span>
+                {sec.nota && <p className="w-full text-xs text-muted-foreground">{sec.nota}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {sec.items.map((m) => (
+                  <button
+                    key={`${m.grupoId}-${m.nombre}`}
+                    type="button"
+                    onClick={() => setAbierto(m)}
+                    className="group relative aspect-square overflow-hidden rounded-xl border bg-muted text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Foto nombre={m.nombre} className="h-full w-full transition-transform duration-300 group-hover:scale-105" />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 pt-8">
+                      <p className="text-sm font-semibold leading-tight text-white">{m.nombre}</p>
+                      <p className="truncate text-[11px] text-white/80">
+                        {m.formula} · Mohs {m.mohs}
+                      </p>
+                    </div>
+                  </button>
                 ))}
-              </Tabs>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+          Ningún mineral coincide con la búsqueda.{' '}
+          <button type="button" onClick={limpiar} className="font-medium text-primary hover:underline">
+            Quitar filtros
+          </button>
+        </div>
+      )}
 
-        <TabsContent value="organicos">
-          <Card className="card-accent">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Gem className="h-5 w-5 text-primary" />
-                Minerales orgánicos
-              </CardTitle>
-              <CardDescription>
-                Sustancias de origen biogénico (resinas, hidrocarburos y sales orgánicas) que cumplen la
-                definición de mineral: sólidas, naturales y con composición definida.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <MineralTable minerales={ORGANICOS} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Ficha completa */}
+      <Dialog open={abierto !== null} onOpenChange={(o) => !o && setAbierto(null)}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          {abierto && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl">{abierto.nombre}</DialogTitle>
+                <DialogDescription>
+                  {abierto.grupo}
+                  {abierto.subgrupo ? ` · ${abierto.subgrupo}` : ''}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+                <Foto nombre={abierto.nombre} className="aspect-square w-full rounded-lg border" />
+                <dl className="space-y-2.5 text-sm">
+                  {PROPIEDADES.map(({ key, label }) => (
+                    <div key={key}>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+                      <dd>
+                        {key === 'mohs' ? (
+                          <Badge variant="secondary" className="font-mono">{abierto.mohs}</Badge>
+                        ) : (
+                          abierto[key]
+                        )}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Foto: Wikimedia Commons (licencia libre).</p>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

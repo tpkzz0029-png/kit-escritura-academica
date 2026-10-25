@@ -15,8 +15,10 @@ export interface HumanizeResult {
   truncated: boolean
 }
 
-const CHUNK_TARGET = 2000 // caracteres por trozo (objetivo)
-const CHUNK_MAX = 2800 // máximo duro antes de cortar por oraciones
+// En Vercel la función puede durar hasta 300 s, así que los trozos pueden ser
+// generosos (si vuelves a Netlify, bájalos a ~1200/1600 por su límite de 10 s).
+const CHUNK_TARGET = 2500 // caracteres por trozo (objetivo)
+const CHUNK_MAX = 3200 // máximo duro antes de cortar por oraciones
 
 /** Divide el texto en párrafos y agrupa párrafos en trozos de ~CHUNK_TARGET
  *  caracteres, sin cortar párrafos por la mitad salvo que un párrafo aislado
@@ -55,7 +57,7 @@ export function splitIntoChunks(text: string): string[] {
 
 async function humanizeChunk(text: string): Promise<HumanizeResult> {
   // relativo a la URL actual: funciona en local y en el despliegue
-  const url = new URL('api/humanize', window.location.href).toString()
+  const url = new URL('/api/humanize', window.location.origin).toString()
 
   let res: Response
   try {
