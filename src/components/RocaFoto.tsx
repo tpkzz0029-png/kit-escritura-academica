@@ -1,8 +1,34 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
-/* Foto de muestra de cada roca identificada (Wikimedia Commons, licencia
-   libre), descargadas en public/rocas/ con scripts/descargar_rocas.py.
+/* Rocas con fotografía micro (lámina delgada) extraída de la Guía de
+   rocas del Museo de Ciencias Naturales de Barcelona (macro y micro). */
+const MICRO: Record<string, string> = {
+  granito: 'granito',
+  gabro: 'gabro',
+  peridotita: 'peridotita',
+  basalto: 'basalto',
+  riolita: 'riolita',
+  obsidiana: 'obsidiana',
+  pumita: 'pumita',
+  conglomerado: 'conglomerado',
+  cuarzoarenita: 'cuarzoarenita',
+  lutita: 'lutita',
+  yeso: 'yeso',
+  sal: 'sal',
+  'carbon-bituminoso': 'carbon-bituminoso',
+  pizarra: 'pizarra',
+  filita: 'filita',
+  esquisto: 'esquisto',
+  gneis: 'gneis',
+  corneana: 'corneana',
+  marmol: 'marmol',
+  cuarcita: 'cuarcita',
+}
+
+/* Foto de muestra de cada roca identificada. Las 21 rocas con macro de la
+   Guía (Museo de Ciencias Naturales de Barcelona) usan esa foto; el resto
+   conserva Wikimedia Commons (licencia libre).
    Clave = id de la candidata en los árboles de decisión. */
 const FOTOS: Record<string, string> = {
   // Ígneas
@@ -58,9 +84,11 @@ const FOTOS: Record<string, string> = {
 /** Foto de la roca identificada con vista ampliada al hacer clic. */
 export default function RocaFoto({ id, nombre }: { id: string; nombre: string }) {
   const [open, setOpen] = useState(false)
+  const [vista, setVista] = useState<'macro' | 'micro'>('macro')
   const slug = FOTOS[id]
   if (!slug) return null
-  const src = `/rocas/${slug}.jpg`
+  const microSlug = MICRO[id]
+  const src = vista === 'micro' && microSlug ? `/rocas/micro/${microSlug}.jpg` : `/rocas/${slug}.jpg`
   return (
     <>
       <button
@@ -76,14 +104,46 @@ export default function RocaFoto({ id, nombre }: { id: string; nombre: string })
           className="max-h-52 w-auto object-cover"
         />
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o)
+          if (o) setVista('macro')
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{nombre}</DialogTitle>
             <DialogDescription>
-              Muestra de mano de referencia. Foto: Wikimedia Commons (licencia libre).
+              {vista === 'micro'
+                ? 'Lámina delgada vista al microscopio (foto micro). Fuente: Guía de rocas, Museo de Ciencias Naturales de Barcelona.'
+                : microSlug
+                  ? 'Muestra de mano de referencia (foto macro). Fuente: Guía de rocas, Museo de Ciencias Naturales de Barcelona.'
+                  : 'Muestra de mano de referencia. Foto: Wikimedia Commons (licencia libre).'}
             </DialogDescription>
           </DialogHeader>
+          {microSlug && (
+            <div className="mb-3 flex justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setVista('macro')}
+                className={`rounded-md border px-3 py-1 text-sm transition-colors ${
+                  vista === 'macro' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                }`}
+              >
+                🔍 Macro (mano)
+              </button>
+              <button
+                type="button"
+                onClick={() => setVista('micro')}
+                className={`rounded-md border px-3 py-1 text-sm transition-colors ${
+                  vista === 'micro' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                }`}
+              >
+                🔬 Micro (lámina)
+              </button>
+            </div>
+          )}
           <img
             src={src}
             alt={`Muestra ampliada de ${nombre}`}
