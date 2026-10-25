@@ -24,13 +24,13 @@ const CANDIDATES: Candidate[] = [
   { id: 'brecha-volcanica', nombre: 'Brecha volcánica', familia: 'Piroclástica', comp: 'Fragmentos > 2 mm', desc: 'Bloques angulares, lapilli grueso y ceniza: fragmentos mayores de 2 mm de origen volcánico.', confirm: 'Textura piroclástica con fragmentos > 2 mm (Anexo C-2).', accepts: { otras: ['piro-gruesa'] } },
   { id: 'obsidiana', nombre: 'Obsidiana', familia: 'Vítrea (holohialina)', comp: 'Vidrio compacto', desc: 'Vidrio volcánico negro brillante con fractura conchoidal; misma composición que la riolita.', confirm: 'Vidrio compacto, sin vesículas (Anexo C-2).', accepts: { crist: ['holohialina'], vesic: ['no'] } },
   { id: 'pumita', nombre: 'Pumita', familia: 'Vítrea (holohialina, vacuolar)', comp: 'Vidrio con vesículas', desc: 'Vidrio volcánico claro, ligero, lleno de huecos de gas; flota en el agua.', confirm: 'Vidrio vacuolar: con vesículas (Anexo C-2).', accepts: { crist: ['holohialina'], vesic: ['si'] } },
-  { id: 'granito', nombre: 'Granito', familia: 'Plutónica (fanerítica)', comp: 'Félsica (granítica)', desc: 'Cuarzo, feldespato potásico y plagioclasa rica en sodio con moscovita/biotita; menos del 25 % de oscuros.', confirm: 'Composición granítica + textura fanerítica (Anexo C-2).', accepts: { crist: ['holocristalina'], tama: ['faneritica'], comp: ['felsica'] } },
+  { id: 'granito', nombre: 'Granito', familia: 'Plutónica (fanerítica)', comp: 'Félsica (granítica)', desc: 'Cuarzo, feldespato potásico y plagioclasa rica en sodio con moscovita/biotita; menos del 25 % de oscuros.', confirm: 'Composición granítica + textura fanerítica (Anexo C-2).', accepts: { crist: ['holocristalina', 'hipocristalina'], tama: ['faneritica'], comp: ['felsica'] } },
   { id: 'riolita', nombre: 'Riolita', familia: 'Volcánica (afanítica)', comp: 'Félsica (granítica)', desc: 'Misma mineralogía que el granito pero de grano fino o vítrea; clara, gris o rosada.', confirm: 'Composición granítica + textura afanítica (Anexo C-2).', accepts: { crist: ['holocristalina', 'hipocristalina'], tama: ['afanitica'], comp: ['felsica'] } },
-  { id: 'diorita', nombre: 'Diorita', familia: 'Plutónica (fanerítica)', comp: 'Intermedia (andesítica)', desc: 'Plagioclasa rica en sodio-calcio con anfíbol, biotita y piroxeno; 25-45 % de oscuros.', confirm: 'Composición andesítica + textura fanerítica (Anexo C-2).', accepts: { crist: ['holocristalina'], tama: ['faneritica'], comp: ['intermedia'] } },
+  { id: 'diorita', nombre: 'Diorita', familia: 'Plutónica (fanerítica)', comp: 'Intermedia (andesítica)', desc: 'Plagioclasa rica en sodio-calcio con anfíbol, biotita y piroxeno; 25-45 % de oscuros.', confirm: 'Composición andesítica + textura fanerítica (Anexo C-2).', accepts: { crist: ['holocristalina', 'hipocristalina'], tama: ['faneritica'], comp: ['intermedia'] } },
   { id: 'andesita', nombre: 'Andesita', familia: 'Volcánica (afanítica)', comp: 'Intermedia (andesítica)', desc: 'Gris media, la lava típica de los estratovolcanes; a menudo porfídica con plagioclasa.', confirm: 'Composición andesítica + textura afanítica (Anexo C-2).', accepts: { crist: ['holocristalina', 'hipocristalina'], tama: ['afanitica'], comp: ['intermedia'] } },
-  { id: 'gabro', nombre: 'Gabro', familia: 'Plutónica (fanerítica)', comp: 'Máfica (basáltica)', desc: 'Plagioclasa rica en calcio con piroxeno y olivino; 45-85 % de oscuros, sin cuarzo.', confirm: 'Composición basáltica + textura fanerítica (Anexo C-2).', accepts: { crist: ['holocristalina'], tama: ['faneritica'], comp: ['mafica'] } },
+  { id: 'gabro', nombre: 'Gabro', familia: 'Plutónica (fanerítica)', comp: 'Máfica (basáltica)', desc: 'Plagioclasa rica en calcio con piroxeno y olivino; 45-85 % de oscuros, sin cuarzo.', confirm: 'Composición basáltica + textura fanerítica (Anexo C-2).', accepts: { crist: ['holocristalina', 'hipocristalina'], tama: ['faneritica'], comp: ['mafica'] } },
   { id: 'basalto', nombre: 'Basalto', familia: 'Volcánica (afanítica)', comp: 'Máfica (basáltica)', desc: 'Negra o gris oscura, compacta; la lava más común del planeta; a veces vesicular.', confirm: 'Composición basáltica + textura afanítica (Anexo C-2).', accepts: { crist: ['holocristalina', 'hipocristalina'], tama: ['afanitica'], comp: ['mafica'] } },
-  { id: 'peridotita', nombre: 'Peridotita', familia: 'Plutónica ultramáfica (fanerítica)', comp: 'Ultramáfica', desc: 'Olivino y piroxenos casi puros (85-100 % de oscuros); verde oliva, densa y pesada.', confirm: 'Composición ultramáfica + textura fanerítica (Anexo C-2).', accepts: { crist: ['holocristalina'], tama: ['faneritica'], comp: ['ultramafica'] } },
+  { id: 'peridotita', nombre: 'Peridotita', familia: 'Plutónica ultramáfica (fanerítica)', comp: 'Ultramáfica', desc: 'Olivino y piroxenos casi puros (85-100 % de oscuros); verde oliva, densa y pesada.', confirm: 'Composición ultramáfica + textura fanerítica (Anexo C-2).', accepts: { crist: ['holocristalina', 'hipocristalina'], tama: ['faneritica'], comp: ['ultramafica'] } },
   { id: 'komatiita', nombre: 'Komatiita', familia: 'Volcánica ultramáfica (afanítica)', comp: 'Ultramáfica (poco común)', desc: 'Lava ultramáfica de grano fino, verde oscuro; típica del Arcaico.', confirm: 'Composición ultramáfica + textura afanítica (Anexo C-2).', accepts: { crist: ['holocristalina', 'hipocristalina'], tama: ['afanitica'], comp: ['ultramafica'] } },
 ]
 
@@ -53,6 +53,11 @@ function aliveList(a: Answers): Candidate[] {
   // La textura piroclástica redefine la roca (paso C de la guía)
   if (a.otras === 'piro-fina' || a.otras === 'piro-gruesa') {
     return base.filter((c) => c.accepts.otras?.includes(a.otras as string))
+  }
+  // Las piroclásticas solo se consideran si el usuario eligió textura
+  // piroclástica; si no, ensucian el listado (p. ej. en el camino vítreo).
+  if (a.otras === undefined) {
+    return base.filter((c) => !c.accepts.otras)
   }
   return base
 }
